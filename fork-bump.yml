@@ -1,0 +1,23 @@
+resources:
+- name: fork
+  type: git
+  source:
+    uri: https://((github-token))@github.com/cirocosta/concourse
+    branch: master
+
+- name: upstream
+  type: git
+  source:
+    uri: https://github.com/concourse/concourse
+    branch: master
+
+jobs:
+- name: bump-fork
+  plan:
+  - aggregate:
+    - get: upstream
+      trigger: true
+  - put: fork
+    inputs: [ upstream ]
+    params:
+      repository: ./upstream
