@@ -4,7 +4,14 @@ resource_types:
   source:
     repository: concourse/concourse-pipeline-resource
 
+
 resources:
+- name: periodically
+  type: time
+  check_every: 15s
+  source:
+    interval: 30s
+
 - name: fork
   type: git
   source:
@@ -58,6 +65,8 @@ jobs:
 
 - name: generate-pipelines
   plan:
+  - get: periodically
+    trigger: true
   - get: maintenance-branch
     trigger: true
   - task: generate
