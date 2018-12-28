@@ -1,6 +1,4 @@
-local forkBranches = [
-  'master',
-];
+local forkBranches = std.extVar('branches');
 
 local resources = [{
   name: 'fork-' + branch,

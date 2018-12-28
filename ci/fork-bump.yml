@@ -1,0 +1,63 @@
+resources:
+- name: fork
+  type: git
+  source:
+    uri: https://((github-token))@github.com/cirocosta/concourse
+    branch: master
+
+- name: maintenance-branch
+  type: git
+  source:
+    uri: https://((github-token))@github.com/cirocosta/concourse
+    branch: maintenance
+
+- name: upstream
+  type: git
+  source:
+    uri: https://github.com/concourse/concourse
+    branch: master
+
+jobs:
+- name: bump-fork
+  plan:
+  - get: upstream
+    trigger: true
+  - put: fork
+    inputs: [ upstream ]
+    params:
+      repository: ./upstream
+
+- name: generate-pipelines
+  plan:
+  - get: maintenance-branch
+    trigger: true
+  - task: generate
+    config:
+      platform: linux
+      image_resource:
+        type: registry-image
+        source:
+          repository: alpine
+      inputs:
+      - name: maintenance-branch
+        path: .
+      caches:
+      - path: jsonnet
+      run:
+        path: /bin/sh
+        args:
+        - -c
+        - -e
+        - |
+          apk add --update make
+
+          if [ ! -f "jsonnet/jsonnet" ]; then
+            apk add git g++
+            cd ./jsonnet
+            git clone https://github.com/google/jsonnet .
+            make -j4
+            cd ..
+          fi
+
+          cp ./jsonnet/jsonnet /usr/local/bin/jsonnet
+          make

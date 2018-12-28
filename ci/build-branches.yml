@@ -1,0 +1,79 @@
+{
+   "groups": null,
+   "jobs": [
+      {
+         "name": "build-image-master",
+         "plan": [
+            {
+               "get": "fork-master",
+               "trigger": true
+            },
+            {
+               "config": {
+                  "container_limits": { },
+                  "image_resource": {
+                     "source": {
+                        "repository": "concourse/builder"
+                     },
+                     "type": "registry-image"
+                  },
+                  "inputs": [
+                     {
+                        "name": "fork-master",
+                        "path": "./"
+                     }
+                  ],
+                  "outputs": [
+                     {
+                        "name": "image"
+                     }
+                  ],
+                  "params": {
+                     "REPOSITORY": "cirocosta/concourse",
+                     "TAG": "master"
+                  },
+                  "platform": "linux",
+                  "run": {
+                     "path": "build"
+                  }
+               },
+               "privileged": true,
+               "task": "build"
+            },
+            {
+               "get_params": {
+                  "format": "oci"
+               },
+               "inputs": [
+                  "image"
+               ],
+               "params": {
+                  "image": "image/image.tar"
+               },
+               "put": "dev-image-master"
+            }
+         ]
+      }
+   ],
+   "resource_types": null,
+   "resources": [
+      {
+         "name": "fork-master",
+         "source": {
+            "branch": "master",
+            "uri": "https://github.com/cirocosta/concourse"
+         },
+         "type": "git"
+      },
+      {
+         "name": "dev-image-master",
+         "source": {
+            "password": "((docker-password))",
+            "repository": "cirocosta/concourse",
+            "tag": "master",
+            "username": "((docker-user))"
+         },
+         "type": "registry-image"
+      }
+   ]
+}
