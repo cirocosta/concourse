@@ -40,24 +40,34 @@ jobs:
           repository: alpine
       inputs:
       - name: maintenance-branch
-        path: .
       caches:
-      - path: jsonnet
+      - path: ./jsonnet
       run:
         path: /bin/sh
         args:
         - -c
         - -e
         - |
-          apk add --update make
+          export PATH=$PATH:$(realpath ./jsonnet)
 
-          if [ ! -f "jsonnet/jsonnet" ]; then
-            apk add git g++
-            cd ./jsonnet
-            git clone https://github.com/google/jsonnet .
-            make -j4
-            cd ..
+          apk add --update make jq git libstdc++
+
+          if [ ! -x "$(command -v jsonnet)" ]; then
+            apk add g++
+            git clone https://github.com/google/jsonnet ./jsonnet
+            make -C ./jsonnet -j6
           fi
 
-          cp ./jsonnet/jsonnet /usr/local/bin/jsonnet
+          cd ./maintenance-branch
           make
+
+          if [ ! -z "$(git status --porcelain)" ]; then
+            git config user.name "Ciro S. Costa"
+            git config user.email "cscosta@pivotal.io"
+            git add --all
+            git commit -m "[maintenance] bump"
+          fi
+
+  - put: maintenance-branch
+    params:
+      repository: ./maintenance-branch
