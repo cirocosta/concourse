@@ -1,3 +1,9 @@
+resource_types:
+- name: concourse-pipeline
+  type: registry-image
+  source:
+    repository: concourse/concourse-pipeline-resource
+
 resources:
 - name: fork
   type: git
@@ -17,6 +23,16 @@ resources:
     uri: https://github.com/concourse/concourse
     branch: master
 
+- name: pipelines
+  type: concourse-pipeline
+  source:
+    target: https://hush-house.concourse-ci.org
+    teams:
+    - name: main
+      username: admin
+      password: ((admin-password))
+
+
 jobs:
 - name: bump-fork
   plan:
@@ -26,6 +42,19 @@ jobs:
     inputs: [ upstream ]
     params:
       repository: ./upstream
+
+- name: set-pipelines
+  plan:
+  - get: maintenance-branch
+    trigger: true
+    passed: [ generate-pipelines ]
+  - put: pipelines
+    params:
+      pipelines:
+      - name: build-branches
+        team: main
+        config_file: ./maintenance-branch/ci/build-branches.yml
+
 
 - name: generate-pipelines
   plan:
