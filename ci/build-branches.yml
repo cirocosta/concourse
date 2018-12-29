@@ -2,6 +2,59 @@
    "groups": null,
    "jobs": [
       {
+         "name": "build-image-ci",
+         "plan": [
+            {
+               "get": "fork-ci",
+               "trigger": true
+            },
+            {
+               "config": {
+                  "container_limits": { },
+                  "image_resource": {
+                     "source": {
+                        "repository": "concourse/builder"
+                     },
+                     "type": "registry-image"
+                  },
+                  "inputs": [
+                     {
+                        "name": "fork-ci",
+                        "path": "./"
+                     }
+                  ],
+                  "outputs": [
+                     {
+                        "name": "image"
+                     }
+                  ],
+                  "params": {
+                     "REPOSITORY": "cirocosta/concourse",
+                     "TAG": "ci"
+                  },
+                  "platform": "linux",
+                  "run": {
+                     "path": "build"
+                  }
+               },
+               "privileged": true,
+               "task": "build"
+            },
+            {
+               "get_params": {
+                  "format": "oci"
+               },
+               "inputs": [
+                  "image"
+               ],
+               "params": {
+                  "image": "image/image.tar"
+               },
+               "put": "dev-image-ci"
+            }
+         ]
+      },
+      {
          "name": "build-image-master",
          "plan": [
             {
@@ -58,12 +111,30 @@
    "resource_types": null,
    "resources": [
       {
+         "name": "fork-ci",
+         "source": {
+            "branch": "ci",
+            "uri": "https://github.com/cirocosta/concourse"
+         },
+         "type": "git"
+      },
+      {
          "name": "fork-master",
          "source": {
             "branch": "master",
             "uri": "https://github.com/cirocosta/concourse"
          },
          "type": "git"
+      },
+      {
+         "name": "dev-image-ci",
+         "source": {
+            "password": "((docker-password))",
+            "repository": "cirocosta/concourse",
+            "tag": "ci",
+            "username": "((docker-user))"
+         },
+         "type": "registry-image"
       },
       {
          "name": "dev-image-master",
