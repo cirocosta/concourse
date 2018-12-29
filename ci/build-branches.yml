@@ -2,10 +2,10 @@
    "groups": null,
    "jobs": [
       {
-         "name": "build-image-ci",
+         "name": "build-image-ci/rc-image",
          "plan": [
             {
-               "get": "fork-ci",
+               "get": "fork-ci/rc-image",
                "trigger": true
             },
             {
@@ -19,7 +19,7 @@
                   },
                   "inputs": [
                      {
-                        "name": "fork-ci",
+                        "name": "fork-ci/rc-image",
                         "path": "./"
                      }
                   ],
@@ -30,7 +30,7 @@
                   ],
                   "params": {
                      "REPOSITORY": "cirocosta/concourse",
-                     "TAG": "ci"
+                     "TAG": "ci/rc-image"
                   },
                   "platform": "linux",
                   "run": {
@@ -50,7 +50,7 @@
                "params": {
                   "image": "image/image.tar"
                },
-               "put": "dev-image-ci"
+               "put": "dev-image-ci/rc-image"
             }
          ]
       },
@@ -111,9 +111,9 @@
    "resource_types": null,
    "resources": [
       {
-         "name": "fork-ci",
+         "name": "fork-ci/rc-image",
          "source": {
-            "branch": "ci",
+            "branch": "ci/rc-image",
             "uri": "https://github.com/cirocosta/concourse"
          },
          "type": "git"
@@ -127,11 +127,11 @@
          "type": "git"
       },
       {
-         "name": "dev-image-ci",
+         "name": "dev-image-ci/rc-image",
          "source": {
             "password": "((docker-password))",
             "repository": "cirocosta/concourse",
-            "tag": "ci",
+            "tag": "ci/rc-image",
             "username": "((docker-user))"
          },
          "type": "registry-image"
