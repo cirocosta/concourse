@@ -1,0 +1,52 @@
+resources:
+- name: dev-image
+  type: registry-image
+  source:
+    repository: concourse/dev
+
+- name: concourse
+  type: git
+  source:
+    uri: https://github.com/cirocosta/concourse
+    branch: rc-image
+
+- name: version
+  type: mock
+  source: {}
+
+jobs:
+- name: rc-image
+  public: true
+  serial: true
+  plan:
+  - aggregate:
+    - get: concourse
+      trigger: true
+    - get: dev-image
+      trigger: true
+    - get: final-version
+      resource: version
+      trigger: true
+  - task: build
+    privileged: true
+    config:
+      platform: linux
+      image_resource:
+        type: registry-image
+        source:
+          repository: concourse/builder
+      params:
+        REPOSITORY: concourse/concourse-rc
+        DOCKERFILE: concourse/ci/dockerfiles/rc/Dockerfile
+      inputs:
+      - name: concourse
+      - name: final-version
+      outputs: [{name: image}]
+      run:
+        path: /bin/sh
+        args:
+        - -c
+        - |
+          export BUILDS_ARGS=VERSION=$(cat ./version/version)
+          export TAG=$(cat ./version/version)
+          build
