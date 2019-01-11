@@ -2,6 +2,59 @@
    "groups": null,
    "jobs": [
       {
+         "name": "build-image-issue/2852",
+         "plan": [
+            {
+               "get": "fork-issue/2852",
+               "trigger": true
+            },
+            {
+               "config": {
+                  "container_limits": { },
+                  "image_resource": {
+                     "source": {
+                        "repository": "concourse/builder"
+                     },
+                     "type": "registry-image"
+                  },
+                  "inputs": [
+                     {
+                        "name": "fork-issue/2852",
+                        "path": "./"
+                     }
+                  ],
+                  "outputs": [
+                     {
+                        "name": "image"
+                     }
+                  ],
+                  "params": {
+                     "REPOSITORY": "cirocosta/concourse",
+                     "TAG": "issue/2852"
+                  },
+                  "platform": "linux",
+                  "run": {
+                     "path": "build"
+                  }
+               },
+               "privileged": true,
+               "task": "build"
+            },
+            {
+               "get_params": {
+                  "format": "oci"
+               },
+               "inputs": [
+                  "image"
+               ],
+               "params": {
+                  "image": "image/image.tar"
+               },
+               "put": "dev-image-issue/2852"
+            }
+         ]
+      },
+      {
          "name": "build-image-master",
          "plan": [
             {
@@ -164,6 +217,14 @@
    "resource_types": null,
    "resources": [
       {
+         "name": "fork-issue/2852",
+         "source": {
+            "branch": "issue/2852",
+            "uri": "https://github.com/cirocosta/concourse"
+         },
+         "type": "git"
+      },
+      {
          "name": "fork-master",
          "source": {
             "branch": "master",
@@ -186,6 +247,16 @@
             "uri": "https://github.com/cirocosta/concourse"
          },
          "type": "git"
+      },
+      {
+         "name": "dev-image-issue/2852",
+         "source": {
+            "password": "((docker-password))",
+            "repository": "cirocosta/concourse",
+            "tag": "issue/2852",
+            "username": "((docker-user))"
+         },
+         "type": "registry-image"
       },
       {
          "name": "dev-image-master",
