@@ -7,6 +7,7 @@ import (
 	"github.com/onsi/gomega/gexec"
 
 	. "github.com/concourse/concourse/topgun"
+	. "github.com/concourse/concourse/topgun/k8s"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -30,10 +31,10 @@ var _ = Describe("Ephemeral workers", func() {
 			"--set=worker.replicas=1",
 			"--set=concourse.worker.baggageclaim.driver=overlay")
 
-		waitAllPodsInNamespaceToBeReady(namespace)
+		WaitAllPodsInNamespaceToBeReady(namespace)
 
 		By("Creating the web proxy")
-		proxySession, atcEndpoint = startPortForwarding(namespace, releaseName+"-web", "8080")
+		proxySession, atcEndpoint = StartPortForwarding(namespace, releaseName+"-web", "8080")
 
 		By("Logging in")
 		fly.Login("test", "test", atcEndpoint)
@@ -46,13 +47,13 @@ var _ = Describe("Ephemeral workers", func() {
 	})
 
 	AfterEach(func() {
-		helmDestroy(releaseName)
+		HelmDestroy(releaseName)
 		Wait(Start(nil, "kubectl", "delete", "namespace", namespace, "--wait=false"))
 		Wait(proxySession.Interrupt())
 	})
 
 	It("Gets properly cleaned when getting removed and then put back on", func() {
-		deletePods(releaseName, fmt.Sprintf("--selector=app=%s-worker", releaseName))
+		DeletePods(releaseName, fmt.Sprintf("--selector=app=%s-worker", releaseName))
 
 		Eventually(func() (runningWorkers []Worker) {
 			workers := fly.GetWorkers()

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	. "github.com/concourse/concourse/topgun"
+	. "github.com/concourse/concourse/topgun/k8s"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -66,7 +67,7 @@ var _ = Describe("Prometheus integration", func() {
 			"--set=concourse.web.prometheus.enabled=true",
 			"--set=concourse.worker.baggageclaim.driver=detect")
 
-		helmDeploy(prometheusReleaseName,
+		HelmDeploy(prometheusReleaseName,
 			namespace,
 			path.Join(Environment.ChartsDir, "stable/prometheus"),
 			"--set=nodeExporter.enabled=false",
@@ -75,15 +76,15 @@ var _ = Describe("Prometheus integration", func() {
 			"--set=alertmanager.enabled=false",
 			"--set=server.persistentVolume.enabled=false")
 
-		waitAllPodsInNamespaceToBeReady(namespace)
+		WaitAllPodsInNamespaceToBeReady(namespace)
 
 		By("Creating the prometheus proxy")
-		proxySession, prometheusEndpoint = startPortForwarding(namespace, prometheusReleaseName+"-prometheus-server", "80")
+		proxySession, prometheusEndpoint = StartPortForwarding(namespace, prometheusReleaseName+"-prometheus-server", "80")
 	})
 
 	AfterEach(func() {
-		helmDestroy(releaseName)
-		helmDestroy(prometheusReleaseName)
+		HelmDestroy(releaseName)
+		HelmDestroy(prometheusReleaseName)
 		Wait(Start(nil, "kubectl", "delete", "namespace", namespace, "--wait=false"))
 		Wait(proxySession.Interrupt())
 	})

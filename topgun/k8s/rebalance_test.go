@@ -5,9 +5,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/concourse/concourse/topgun/generic"
 	"github.com/onsi/gomega/gexec"
 
 	. "github.com/concourse/concourse/topgun"
+	. "github.com/concourse/concourse/topgun/k8s"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -31,10 +33,10 @@ var _ = Describe("Worker Rebalancing", func() {
 			"--set=concourse.worker.rebalanceInterval=5s",
 			"--set=concourse.worker.baggageclaim.driver=detect")
 
-		waitAllPodsInNamespaceToBeReady(namespace)
+		WaitAllPodsInNamespaceToBeReady(namespace)
 
 		By("Creating the web proxy")
-		proxySession, atcEndpoint = startPortForwarding(namespace, releaseName+"-web", "8080")
+		proxySession, atcEndpoint = StartPortForwarding(namespace, releaseName+"-web", "8080")
 
 		By("Logging in")
 		fly.Login("test", "test", atcEndpoint)
@@ -47,28 +49,14 @@ var _ = Describe("Worker Rebalancing", func() {
 	})
 
 	AfterEach(func() {
-		helmDestroy(releaseName)
+		HelmDestroy(releaseName)
 		Wait(Start(nil, "kubectl", "delete", "namespace", namespace, "--wait=false"))
 		Wait(proxySession.Interrupt())
 	})
 
-	It("eventually has worker connecting to each web nodes over a period of time", func() {
-		pods := getPods(releaseName, "--selector=app="+releaseName+"-web")
+	generic.WorkerRebalancing(K8s{
+		Namespace:            namespace,
+		ConcourseReleaseName: releaseName,
+	}, fly)
 
-		Eventually(func() string {
-			workers := fly.GetWorkers()
-			Expect(workers).To(HaveLen(1))
-
-			return strings.Split(workers[0].GardenAddress, ":")[0]
-		}, 2*time.Minute, 10*time.Second).
-			Should(Equal(pods[0].Status.Ip))
-
-		Eventually(func() string {
-			workers := fly.GetWorkers()
-
-			Expect(workers).To(HaveLen(1))
-			return strings.Split(workers[0].GardenAddress, ":")[0]
-		}, 2*time.Minute, 10*time.Second).
-			Should(Equal(pods[1].Status.Ip))
-	})
 })

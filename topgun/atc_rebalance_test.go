@@ -21,12 +21,12 @@ var _ = Describe("Rebalancing workers", func() {
 			)
 
 			waitForRunningWorker()
-
-			webInstances = JobInstances("web")
 		})
 
 		Describe("when a rebalance time is configured", func() {
 			It("the worker eventually connects to both web nodes over a period of time", func() {
+				webInstances = JobInstances("web")
+
 				Eventually(func() string {
 					workers := flyTable("workers", "-d")
 					return strings.Split(workers[0]["garden address"], ":")[0]

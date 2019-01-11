@@ -5,6 +5,7 @@ import (
 	"github.com/onsi/gomega/gexec"
 
 	. "github.com/concourse/concourse/topgun"
+	. "github.com/concourse/concourse/topgun/k8s"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
@@ -19,8 +20,8 @@ var _ = Describe("Baggageclaim Drivers", func() {
 	)
 
 	AfterEach(func() {
-		helmDestroy(releaseName)
-		Wait(Start(nil, "kubectl", "delete", "namespace", namespace, "--wait=false"))
+		HelmDestroy(releaseName)
+		Run(nil, "kubectl", "delete", "namespace", namespace, "--wait=false")
 
 		if proxySession != nil {
 			Wait(proxySession.Interrupt())
@@ -65,14 +66,15 @@ var _ = Describe("Baggageclaim Drivers", func() {
 					"--namespace="+namespace, "-lapp="+namespace+"-worker")
 				<-workerLogsSession.Exited
 
-				Expect(workerLogsSession.Out.Contents()).To(ContainSubstring("failed-to-set-up-driver"))
+				Expect(workerLogsSession.Out.Contents()).
+					To(ContainSubstring("failed-to-set-up-driver"))
 				return
 			}
 
-			waitAllPodsInNamespaceToBeReady(namespace)
+			WaitAllPodsInNamespaceToBeReady(namespace)
 
 			By("Creating the web proxy")
-			proxySession, atcEndpoint = startPortForwarding(namespace, releaseName+"-web", "8080")
+			proxySession, atcEndpoint = StartPortForwarding(namespace, releaseName+"-web", "8080")
 
 			By("Logging in")
 			fly.Login("test", "test", atcEndpoint)

@@ -8,6 +8,7 @@ import (
 	"github.com/onsi/gomega/gexec"
 
 	. "github.com/concourse/concourse/topgun"
+	. "github.com/concourse/concourse/topgun/k8s"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -28,10 +29,10 @@ var _ = Describe("Kubernetes credential management", func() {
 
 		deployConcourseChart(releaseName, "--set=worker.replicas=1")
 
-		waitAllPodsInNamespaceToBeReady(namespace)
+		WaitAllPodsInNamespaceToBeReady(namespace)
 
 		By("Creating the web proxy")
-		proxySession, atcEndpoint = startPortForwarding(namespace, releaseName+"-web", "8080")
+		proxySession, atcEndpoint = StartPortForwarding(namespace, releaseName+"-web", "8080")
 
 		By("Logging in")
 		fly.Login(username, password, atcEndpoint)
@@ -98,7 +99,7 @@ var _ = Describe("Kubernetes credential management", func() {
 	})
 
 	AfterEach(func() {
-		helmDestroy(releaseName)
+		HelmDestroy(releaseName)
 		Wait(proxySession.Interrupt())
 		Wait(Start(nil, "kubectl", "delete", "namespace", namespace, "--wait=false"))
 	})
@@ -120,4 +121,3 @@ func createCredentialSecret(releaseName, secretName, team string, kv map[string]
 
 	Wait(Start(nil, "kubectl", args...))
 }
-
