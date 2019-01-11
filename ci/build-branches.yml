@@ -212,6 +212,59 @@
                "put": "dev-image-worker-healthchecks"
             }
          ]
+      },
+      {
+         "name": "build-image-worker-rebalancing-prod",
+         "plan": [
+            {
+               "get": "fork-worker-rebalancing-prod",
+               "trigger": true
+            },
+            {
+               "config": {
+                  "container_limits": { },
+                  "image_resource": {
+                     "source": {
+                        "repository": "concourse/builder"
+                     },
+                     "type": "registry-image"
+                  },
+                  "inputs": [
+                     {
+                        "name": "fork-worker-rebalancing-prod",
+                        "path": "./"
+                     }
+                  ],
+                  "outputs": [
+                     {
+                        "name": "image"
+                     }
+                  ],
+                  "params": {
+                     "REPOSITORY": "cirocosta/concourse",
+                     "TAG": "worker-rebalancing-prod"
+                  },
+                  "platform": "linux",
+                  "run": {
+                     "path": "build"
+                  }
+               },
+               "privileged": true,
+               "task": "build"
+            },
+            {
+               "get_params": {
+                  "format": "oci"
+               },
+               "inputs": [
+                  "image"
+               ],
+               "params": {
+                  "image": "image/image.tar"
+               },
+               "put": "dev-image-worker-rebalancing-prod"
+            }
+         ]
       }
    ],
    "resource_types": null,
@@ -244,6 +297,14 @@
          "name": "fork-worker-healthchecks",
          "source": {
             "branch": "worker-healthchecks",
+            "uri": "https://github.com/cirocosta/concourse"
+         },
+         "type": "git"
+      },
+      {
+         "name": "fork-worker-rebalancing-prod",
+         "source": {
+            "branch": "worker-rebalancing-prod",
             "uri": "https://github.com/cirocosta/concourse"
          },
          "type": "git"
@@ -284,6 +345,16 @@
             "password": "((docker-password))",
             "repository": "cirocosta/concourse",
             "tag": "worker-healthchecks",
+            "username": "((docker-user))"
+         },
+         "type": "registry-image"
+      },
+      {
+         "name": "dev-image-worker-rebalancing-prod",
+         "source": {
+            "password": "((docker-password))",
+            "repository": "cirocosta/concourse",
+            "tag": "worker-rebalancing-prod",
             "username": "((docker-user))"
          },
          "type": "registry-image"
