@@ -161,59 +161,6 @@
          ]
       },
       {
-         "name": "build-image-rc-image",
-         "plan": [
-            {
-               "get": "fork-rc-image",
-               "trigger": true
-            },
-            {
-               "config": {
-                  "container_limits": { },
-                  "image_resource": {
-                     "source": {
-                        "repository": "concourse/builder"
-                     },
-                     "type": "registry-image"
-                  },
-                  "inputs": [
-                     {
-                        "name": "fork-rc-image",
-                        "path": "./"
-                     }
-                  ],
-                  "outputs": [
-                     {
-                        "name": "image"
-                     }
-                  ],
-                  "params": {
-                     "REPOSITORY": "cirocosta/concourse",
-                     "TAG": "rc-image"
-                  },
-                  "platform": "linux",
-                  "run": {
-                     "path": "build"
-                  }
-               },
-               "privileged": true,
-               "task": "build"
-            },
-            {
-               "get_params": {
-                  "format": "oci"
-               },
-               "inputs": [
-                  "image"
-               ],
-               "params": {
-                  "image": "image/image.tar"
-               },
-               "put": "dev-image-rc-image"
-            }
-         ]
-      },
-      {
          "name": "build-image-worker-healthchecks",
          "plan": [
             {
@@ -347,14 +294,6 @@
          "type": "git"
       },
       {
-         "name": "fork-rc-image",
-         "source": {
-            "branch": "rc-image",
-            "uri": "https://github.com/cirocosta/concourse"
-         },
-         "type": "git"
-      },
-      {
          "name": "fork-worker-healthchecks",
          "source": {
             "branch": "worker-healthchecks",
@@ -396,16 +335,6 @@
             "password": "((docker-password))",
             "repository": "cirocosta/concourse",
             "tag": "master",
-            "username": "((docker-user))"
-         },
-         "type": "registry-image"
-      },
-      {
-         "name": "dev-image-rc-image",
-         "source": {
-            "password": "((docker-password))",
-            "repository": "cirocosta/concourse",
-            "tag": "rc-image",
             "username": "((docker-user))"
          },
          "type": "registry-image"
