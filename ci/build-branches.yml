@@ -55,6 +55,59 @@
          ]
       },
       {
+         "name": "build-image-issue/2980",
+         "plan": [
+            {
+               "get": "fork-issue/2980",
+               "trigger": true
+            },
+            {
+               "config": {
+                  "container_limits": { },
+                  "image_resource": {
+                     "source": {
+                        "repository": "concourse/builder"
+                     },
+                     "type": "registry-image"
+                  },
+                  "inputs": [
+                     {
+                        "name": "fork-issue/2980",
+                        "path": "./"
+                     }
+                  ],
+                  "outputs": [
+                     {
+                        "name": "image"
+                     }
+                  ],
+                  "params": {
+                     "REPOSITORY": "cirocosta/concourse",
+                     "TAG": "issue/2980"
+                  },
+                  "platform": "linux",
+                  "run": {
+                     "path": "build"
+                  }
+               },
+               "privileged": true,
+               "task": "build"
+            },
+            {
+               "get_params": {
+                  "format": "oci"
+               },
+               "inputs": [
+                  "image"
+               ],
+               "params": {
+                  "image": "image/image.tar"
+               },
+               "put": "dev-image-issue/2980"
+            }
+         ]
+      },
+      {
          "name": "build-image-issue/30000-rc-image",
          "plan": [
             {
@@ -278,6 +331,14 @@
          "type": "git"
       },
       {
+         "name": "fork-issue/2980",
+         "source": {
+            "branch": "issue/2980",
+            "uri": "https://github.com/cirocosta/concourse"
+         },
+         "type": "git"
+      },
+      {
          "name": "fork-issue/30000-rc-image",
          "source": {
             "branch": "issue/30000-rc-image",
@@ -315,6 +376,16 @@
             "password": "((docker-password))",
             "repository": "cirocosta/concourse",
             "tag": "issue/2852",
+            "username": "((docker-user))"
+         },
+         "type": "registry-image"
+      },
+      {
+         "name": "dev-image-issue/2980",
+         "source": {
+            "password": "((docker-password))",
+            "repository": "cirocosta/concourse",
+            "tag": "issue/2980",
             "username": "((docker-user))"
          },
          "type": "registry-image"
