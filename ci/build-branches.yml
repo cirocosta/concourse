@@ -55,6 +55,59 @@
          ]
       },
       {
+         "name": "build-image-feature/workers-count-metric",
+         "plan": [
+            {
+               "get": "fork-feature/workers-count-metric",
+               "trigger": true
+            },
+            {
+               "config": {
+                  "container_limits": { },
+                  "image_resource": {
+                     "source": {
+                        "repository": "concourse/builder"
+                     },
+                     "type": "registry-image"
+                  },
+                  "inputs": [
+                     {
+                        "name": "fork-feature/workers-count-metric",
+                        "path": "./"
+                     }
+                  ],
+                  "outputs": [
+                     {
+                        "name": "image"
+                     }
+                  ],
+                  "params": {
+                     "REPOSITORY": "cirocosta/concourse",
+                     "TAG": "feature/workers-count-metric"
+                  },
+                  "platform": "linux",
+                  "run": {
+                     "path": "build"
+                  }
+               },
+               "privileged": true,
+               "task": "build"
+            },
+            {
+               "get_params": {
+                  "format": "oci"
+               },
+               "inputs": [
+                  "image"
+               ],
+               "params": {
+                  "image": "image/image.tar"
+               },
+               "put": "dev-image-feature/workers-count-metric"
+            }
+         ]
+      },
+      {
          "name": "build-image-issue/2852",
          "plan": [
             {
@@ -384,6 +437,14 @@
          "type": "git"
       },
       {
+         "name": "fork-feature/workers-count-metric",
+         "source": {
+            "branch": "feature/workers-count-metric",
+            "uri": "https://github.com/cirocosta/concourse"
+         },
+         "type": "git"
+      },
+      {
          "name": "fork-issue/2852",
          "source": {
             "branch": "issue/2852",
@@ -437,6 +498,16 @@
             "password": "((docker-password))",
             "repository": "cirocosta/concourse",
             "tag": "bug/worker-state-prometheus",
+            "username": "((docker-user))"
+         },
+         "type": "registry-image"
+      },
+      {
+         "name": "dev-image-feature/workers-count-metric",
+         "source": {
+            "password": "((docker-password))",
+            "repository": "cirocosta/concourse",
+            "tag": "feature/workers-count-metric",
             "username": "((docker-user))"
          },
          "type": "registry-image"

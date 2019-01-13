@@ -1,1 +1,1 @@
-["bug/worker-state-prometheus","issue/2852","issue/2980","issue/30000-rc-image","master","worker-healthchecks","worker-rebalancing-prod"]
+["bug/worker-state-prometheus","feature/workers-count-metric","issue/2852","issue/2980","issue/30000-rc-image","master","worker-healthchecks","worker-rebalancing-prod"]
