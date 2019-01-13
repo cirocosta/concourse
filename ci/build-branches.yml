@@ -2,6 +2,59 @@
    "groups": null,
    "jobs": [
       {
+         "name": "build-image-bug/worker-state-prometheus",
+         "plan": [
+            {
+               "get": "fork-bug/worker-state-prometheus",
+               "trigger": true
+            },
+            {
+               "config": {
+                  "container_limits": { },
+                  "image_resource": {
+                     "source": {
+                        "repository": "concourse/builder"
+                     },
+                     "type": "registry-image"
+                  },
+                  "inputs": [
+                     {
+                        "name": "fork-bug/worker-state-prometheus",
+                        "path": "./"
+                     }
+                  ],
+                  "outputs": [
+                     {
+                        "name": "image"
+                     }
+                  ],
+                  "params": {
+                     "REPOSITORY": "cirocosta/concourse",
+                     "TAG": "bug/worker-state-prometheus"
+                  },
+                  "platform": "linux",
+                  "run": {
+                     "path": "build"
+                  }
+               },
+               "privileged": true,
+               "task": "build"
+            },
+            {
+               "get_params": {
+                  "format": "oci"
+               },
+               "inputs": [
+                  "image"
+               ],
+               "params": {
+                  "image": "image/image.tar"
+               },
+               "put": "dev-image-bug/worker-state-prometheus"
+            }
+         ]
+      },
+      {
          "name": "build-image-issue/2852",
          "plan": [
             {
@@ -323,6 +376,14 @@
    "resource_types": null,
    "resources": [
       {
+         "name": "fork-bug/worker-state-prometheus",
+         "source": {
+            "branch": "bug/worker-state-prometheus",
+            "uri": "https://github.com/cirocosta/concourse"
+         },
+         "type": "git"
+      },
+      {
          "name": "fork-issue/2852",
          "source": {
             "branch": "issue/2852",
@@ -369,6 +430,16 @@
             "uri": "https://github.com/cirocosta/concourse"
          },
          "type": "git"
+      },
+      {
+         "name": "dev-image-bug/worker-state-prometheus",
+         "source": {
+            "password": "((docker-password))",
+            "repository": "cirocosta/concourse",
+            "tag": "bug/worker-state-prometheus",
+            "username": "((docker-user))"
+         },
+         "type": "registry-image"
       },
       {
          "name": "dev-image-issue/2852",
