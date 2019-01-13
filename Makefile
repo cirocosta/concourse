@@ -1,5 +1,8 @@
 all: ci/build-branches.yml
 
+pipeline: ci/build-branches.yml
+	fly -t hh set-pipeline -p build-branches -c ./ci/build-branches.yml
+
 ci/build-branches.yml: branches-list.json build-branches.jsonnet
 	jsonnet \
 		--ext-code 'branches=$(shell cat ./branches-list.json)' \
