@@ -1,11 +1,14 @@
 FROM concourse/dev
 
+# install helm
+ADD ./helm-release/version ./helm/version
 RUN set -x && \
-  apt-get update && \
-  apt-get install -y apt-transport-https && \
-  curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add - && \
-  touch /etc/apt/sources.list.d/kubernetes.list && \
-  echo "deb http://apt.kubernetes.io/ kubernetes-xenial main" | tee -a /etc/apt/sources.list.d/kubernetes.list && \
-  apt-get update && \
-  apt-get install -y kubectl jq && \
-  curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash
+    curl -SL -o helm.tgz https://storage.googleapis.com/kubernetes-helm/helm-v$(cat ./helm/version)-linux-amd64.tar.gz && \
+    tar xzf ./helm.tgz -C /usr/local/bin linux-amd64/helm --strip-components=1
+
+
+# install kubectl
+ADD ./kubernetes-release/version ./kubernetes/version
+RUN set -x && \
+    curl -SL -o /usr/local/bin/kubectl https://storage.googleapis.com/kubernetes-release/release/v$(cat ./kubernetes/version)/bin/linux/amd64/kubectl && \
+    chmod +x /usr/local/bin/kubectl

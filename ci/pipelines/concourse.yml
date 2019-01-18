@@ -322,6 +322,13 @@ jobs:
     - get: concourse
       resource: k8s-dev-dockerfile
       trigger: true
+    - get: helm
+      trigger: true
+    - get: kubernetes
+      trigger: true
+    - get: dev-image
+      passed: [ dev-image ]
+      trigger: true
     - get: builder
   - task: build
     image: builder
@@ -331,7 +338,10 @@ jobs:
       params:
         REPOSITORY: concourse/k8s-dev
         CONTEXT: concourse/ci/dockerfiles/k8s-dev
-      inputs: [{name: concourse}]
+      inputs: 
+      - name: concourse
+      - name: kubernetese
+      - name: helm
       outputs: [{name: image}]
       caches: [{path: cache}]
       run: {path: build}
@@ -986,6 +996,20 @@ resources:
   source:
     owner: Yelp
     repository: dumb-init
+    access_token: ((concourse_github_dummy.access_token))
+
+- name: helm
+  type: github-release
+  source:
+    owner: helm
+    repository: helm
+    access_token: ((concourse_github_dummy.access_token))
+
+- name: kubernetes
+  type: github-release
+  source:
+    owner: kubernetes
+    repository: kubernetes
     access_token: ((concourse_github_dummy.access_token))
 
 - name: bbr
