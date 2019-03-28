@@ -11,9 +11,6 @@ params:
 inputs:
 - name: concourse
 - name: gdn
-- name: fly-linux
-- name: fly-windows
-- name: fly-darwin
 - name: bosh-io-release-resource
 - name: bosh-io-stemcell-resource
 - name: cf-resource
