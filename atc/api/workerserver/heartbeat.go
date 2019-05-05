@@ -9,7 +9,6 @@ import (
 	"github.com/concourse/concourse/atc"
 	"github.com/concourse/concourse/atc/api/present"
 	"github.com/concourse/concourse/atc/db"
-	"github.com/concourse/concourse/atc/metric"
 )
 
 func (s *Server) HeartbeatWorker(w http.ResponseWriter, r *http.Request) {
@@ -40,18 +39,6 @@ func (s *Server) HeartbeatWorker(w http.ResponseWriter, r *http.Request) {
 	}
 
 	registration.Name = workerName
-
-	metric.WorkerContainers{
-		WorkerName: registration.Name,
-		Containers: registration.ActiveContainers,
-		Platform:   registration.Platform,
-	}.Emit(s.logger)
-
-	metric.WorkerVolumes{
-		WorkerName: registration.Name,
-		Volumes:    registration.ActiveVolumes,
-		Platform:   registration.Platform,
-	}.Emit(s.logger)
 
 	savedWorker, err := s.dbWorkerFactory.HeartbeatWorker(registration, ttl)
 	if err == db.ErrWorkerNotPresent {

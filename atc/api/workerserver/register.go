@@ -11,7 +11,6 @@ import (
 	"code.cloudfoundry.org/lager"
 	"github.com/concourse/concourse/atc"
 	"github.com/concourse/concourse/atc/api/accessor"
-	"github.com/concourse/concourse/atc/metric"
 )
 
 type IntMetric int
@@ -62,18 +61,6 @@ func (s *Server) RegisterWorker(w http.ResponseWriter, r *http.Request) {
 	if registration.CertsPath != nil && *registration.CertsPath == "" {
 		registration.CertsPath = nil
 	}
-
-	metric.WorkerContainers{
-		WorkerName: registration.Name,
-		Containers: registration.ActiveContainers,
-		Platform:   registration.Platform,
-	}.Emit(s.logger)
-
-	metric.WorkerVolumes{
-		WorkerName: registration.Name,
-		Volumes:    registration.ActiveVolumes,
-		Platform:   registration.Platform,
-	}.Emit(s.logger)
 
 	if registration.Team != "" {
 		team, found, err := s.teamFactory.FindTeam(registration.Team)
