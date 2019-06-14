@@ -4,9 +4,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-// TODO
-// - make `gc`-based metrics per-worker
-
 var (
 	slowBuckets = []float64{
 		1, 30, 60, 120, 180, 300, 600, 900, 1200, 1800, 2700, 3600, 7200, 18000, 36000,

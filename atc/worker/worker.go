@@ -8,11 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/concourse/baggageclaim"
-	"github.com/concourse/concourse/atc/metric"
-
 	"code.cloudfoundry.org/garden"
 	"code.cloudfoundry.org/lager"
+	"github.com/concourse/baggageclaim"
 	"github.com/concourse/concourse/atc"
 	"github.com/concourse/concourse/atc/creds"
 	"github.com/concourse/concourse/atc/db"
@@ -242,7 +240,6 @@ func (worker *gardenWorker) FindOrCreateContainer(
 			if failedErr != nil {
 				logger.Error("failed-to-mark-container-as-failed", err)
 			}
-			metric.FailedContainers.Inc()
 
 			logger.Error("failed-to-create-container-in-garden", err)
 			return nil, err
@@ -252,7 +249,6 @@ func (worker *gardenWorker) FindOrCreateContainer(
 
 	logger.Debug("created-container-in-garden")
 
-	metric.ContainersCreated.Inc()
 	createdContainer, err = creatingContainer.Created()
 	if err != nil {
 		logger.Error("failed-to-mark-container-as-created", err)
