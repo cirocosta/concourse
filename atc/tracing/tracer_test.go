@@ -7,7 +7,7 @@ import (
 	"github.com/concourse/concourse/atc/db/dbfakes"
 	"github.com/concourse/concourse/atc/tracing"
 	"github.com/concourse/concourse/atc/tracing/tracingfakes"
-	"go.opentelemetry.io/api/core"
+	"go.opentelemetry.io/api/key"
 	"go.opentelemetry.io/api/trace"
 
 	. "github.com/onsi/ginkgo"
@@ -74,22 +74,10 @@ var _ = Describe("Tracer", func() {
 
 				Expect(kvs).ToNot(BeEmpty())
 				Expect(kvs).To(ConsistOf(
-					core.KeyValue{
-						core.Key{"team-name"},
-						core.Value{String: "team-name"},
-					},
-					core.KeyValue{
-						core.Key{"pipeline-name"},
-						core.Value{String: "pipeline-name"},
-					},
-					core.KeyValue{
-						core.Key{"job-name"},
-						core.Value{String: "job-name"},
-					},
-					core.KeyValue{
-						core.Key{"name"},
-						core.Value{String: "build-name"},
-					},
+					key.New("team").String("team-name"),
+					key.New("pipeline").String("pipeline-name"),
+					key.New("job").String("job-name"),
+					key.New("build").String("build-name"),
 				))
 			})
 		})

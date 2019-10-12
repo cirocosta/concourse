@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/concourse/concourse/atc/db"
-	"go.opentelemetry.io/api/core"
+	"go.opentelemetry.io/api/key"
 	"go.opentelemetry.io/api/trace"
 	"go.opentelemetry.io/sdk/export"
 	sdktrace "go.opentelemetry.io/sdk/trace"
@@ -32,34 +32,31 @@ func init() {
 	}
 }
 
+var (
+	teamAttr     = key.New("team")
+	pipelineAttr = key.New("pipeline")
+	jobAttr      = key.New("job")
+	buildAttr    = key.New("build")
+)
+
 // BuildRootSpan creates a root span that represents the entire execution of a
 // build.
 //
 // `build` *must not* be nil.
 //
 func (t *Tracer) BuildRootSpan(build db.Build) trace.Span {
+	const operationName = "build"
+
 	_, span := t.Tracer.Start(
 		context.Background(),
-		"build",
+		operationName,
 	)
 
 	span.SetAttributes(
-		core.KeyValue{
-			core.Key{"team-name"},
-			core.Value{String: build.TeamName()},
-		},
-		core.KeyValue{
-			core.Key{"pipeline-name"},
-			core.Value{String: build.PipelineName()},
-		},
-		core.KeyValue{
-			core.Key{"job-name"},
-			core.Value{String: build.JobName()},
-		},
-		core.KeyValue{
-			core.Key{"name"},
-			core.Value{String: build.Name()},
-		},
+		teamAttr.String(build.TeamName()),
+		pipelineAttr.String(build.PipelineName()),
+		jobAttr.String(build.JobName()),
+		buildAttr.String(build.Name()),
 	)
 
 	return span

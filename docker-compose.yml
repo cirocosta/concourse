@@ -20,15 +20,16 @@ services:
     ports:
     - 8080:8080
     environment:
-      CONCOURSE_LOG_LEVEL: debug
-      CONCOURSE_POSTGRES_HOST: db
-      CONCOURSE_POSTGRES_USER: dev
-      CONCOURSE_POSTGRES_PASSWORD: dev
-      CONCOURSE_POSTGRES_DATABASE: concourse
-      CONCOURSE_EXTERNAL_URL: http://localhost:8080
       CONCOURSE_ADD_LOCAL_USER: test:test,guest:guest
-      CONCOURSE_MAIN_TEAM_LOCAL_USER: test
       CONCOURSE_CLUSTER_NAME: dev
+      CONCOURSE_EXTERNAL_URL: http://localhost:8080
+      CONCOURSE_LOG_LEVEL: debug
+      CONCOURSE_MAIN_TEAM_LOCAL_USER: test
+      CONCOURSE_POSTGRES_DATABASE: concourse
+      CONCOURSE_POSTGRES_HOST: db
+      CONCOURSE_POSTGRES_PASSWORD: dev
+      CONCOURSE_POSTGRES_USER: dev
+      CONCOURSE_TRACING_JAEGER_COMPONENT: atc
       CONCOURSE_TRACING_JAEGER_ENDPOINT: http://jaeger:14268/api/traces
 
   worker:
@@ -55,6 +56,9 @@ services:
 
   jaeger:
     image: jaegertracing/all-in-one:1.14
+    command:
+      - --sampling.strategies-file=/etc/jaeger/sampling_strategies.json
+      - --log-level=debug
     environment:
       COLLECTOR_ZIPKIN_HTTP_PORT: 9411
     ports:
