@@ -8,11 +8,11 @@ import (
 
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/lager/lagerctx"
-
 	"github.com/concourse/concourse/atc"
 	"github.com/concourse/concourse/atc/db"
 	"github.com/concourse/concourse/atc/exec"
 	"github.com/concourse/concourse/atc/metric"
+	"github.com/concourse/concourse/atc/tracing"
 )
 
 //go:generate counterfeiter . Engine
@@ -167,6 +167,11 @@ func (b *engineBuild) Run(logger lager.Logger) {
 		return
 	}
 
+	// [cc] create the root span
+	//
+	buildRootSpan := tracing.GlobalTracer.BuildRootSpan(b.build)
+	defer buildRootSpan.End()
+
 	notifier, err := b.build.AbortNotifier()
 	if err != nil {
 		logger.Error("failed-to-listen-for-aborts", err)
@@ -204,6 +209,12 @@ func (b *engineBuild) Run(logger lager.Logger) {
 	done := make(chan error)
 	go func() {
 		ctx := lagerctx.NewContext(b.ctx, logger)
+
+		// [cc] add the root span to this ctx
+		//
+		// ctx = context.WithValue(ctx, tracing.ContextRootSpanKey, buildRootSpan)
+		//
+
 		done <- step.Run(ctx, state)
 	}()
 

@@ -110,6 +110,19 @@ func NewGetStep(
 // At the end, the resulting ArtifactSource (either from using the cache or
 // fetching the resource) is registered under the step's SourceName.
 func (step *GetStep) Run(ctx context.Context, state RunState) error {
+	// [cc] try to get root span from the ctx
+	//
+	// buildRootSpan := ctx.Value(tracing.ContextRootSpanKey)
+	//
+
+	// [cc] wrap the step in a span
+	//
+	// stepSpan := tracing.SpanWithConteext(ctx, map[string]string{
+	// 	"step-name": "ahuah",
+	// })
+	// defer stepSpan.End()
+	//
+
 	logger := lagerctx.FromContext(ctx)
 	logger = logger.Session("get-step", lager.Data{
 		"step-name": step.plan.Name,
