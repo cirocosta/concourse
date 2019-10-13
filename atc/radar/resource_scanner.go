@@ -287,15 +287,12 @@ func (scanner *resourceScanner) check(
 		return nil
 	}
 
-	ctx := context.Background()
-
 	// [cc] trace this thing
 	//
-	span := tracing.GlobalTracer.Span(ctx, "resource-check", map[string]string{
+	ctx, span := tracing.GlobalTracer.StartSpan(context.Background(), "resource-check", map[string]string{
 		"type":     savedResource.Type(),
 		"scope-id": strconv.Itoa(resourceConfigScope.ID()),
 	})
-	ctx = tracing.WithSpan(ctx, span)
 	defer span.End()
 
 	found, err := scanner.dbPipeline.Reload()

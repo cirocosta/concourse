@@ -3,7 +3,10 @@ package exec
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
+
+	"github.com/concourse/concourse/atc/tracing"
 )
 
 // AggregateStep is a step of steps to run in parallel.
@@ -18,6 +21,13 @@ type AggregateStep []Step
 // single error.
 func (step AggregateStep) Run(ctx context.Context, state RunState) error {
 	errs := make(chan error, len(step))
+
+	// [cc] wrap the step in a span
+	//
+	ctx, span := tracing.GlobalTracer.StartSpan(ctx, "aggregate", map[string]string{
+		"steps": strconv.Itoa(len(step)),
+	})
+	defer span.End()
 
 	for _, s := range step {
 		s := s

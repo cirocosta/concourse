@@ -120,11 +120,10 @@ func (step *TaskStep) Run(ctx context.Context, state RunState) error {
 
 	// [cc] wrap the step in a span
 	//
-	span := tracing.GlobalTracer.Span(ctx, "task", map[string]string{
+	ctx, span := tracing.GlobalTracer.StartSpan(ctx, "task", map[string]string{
 		"name":       step.plan.Name,
 		"privileged": strconv.FormatBool(step.plan.Privileged),
 	})
-	ctx = tracing.WithSpan(ctx, span)
 	defer span.End()
 
 	logger := lagerctx.FromContext(ctx)

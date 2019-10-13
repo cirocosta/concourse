@@ -192,8 +192,7 @@ func (worker *gardenWorker) FindOrCreateContainer(
 
 	// [cc] wrap it in a span
 	//
-	span := tracing.GlobalTracer.Span(ctx, "find-or-create-container", map[string]string{})
-	ctx = tracing.WithSpan(ctx, span)
+	ctx, span := tracing.GlobalTracer.StartSpan(ctx, "find-or-create-container", nil)
 	defer span.End()
 
 	// ensure either creatingContainer or createdContainer exists
@@ -351,10 +350,9 @@ func (worker *gardenWorker) fetchImageForContainer(
 ) (FetchedImage, error) {
 	// [cc] wrap the step in a span
 	//
-	span := tracing.GlobalTracer.Span(ctx, "fetch-image-for-container", map[string]string{
+	ctx, span := tracing.GlobalTracer.StartSpan(ctx, "fetch-image-for-container", map[string]string{
 		"resource-type": spec.ResourceType,
 	})
-	ctx = tracing.WithSpan(ctx, span)
 	defer span.End()
 
 	image, err := worker.imageFactory.GetImage(
@@ -401,8 +399,7 @@ func (worker *gardenWorker) createVolumes(
 
 	// [cc] wrap it in a span
 	//
-	span := tracing.GlobalTracer.Span(ctx, "create-volumes", map[string]string{})
-	ctx = tracing.WithSpan(ctx, span)
+	ctx, span := tracing.GlobalTracer.StartSpan(ctx, "create-volumes", nil)
 	defer span.End()
 
 	scratchVolume, err := worker.volumeClient.FindOrCreateVolumeForContainer(
@@ -578,8 +575,9 @@ func (worker *gardenWorker) cloneRemoteVolumes(
 	container db.CreatingContainer,
 	nonLocals []mountableRemoteInput,
 ) ([]VolumeMount, error) {
-	span := tracing.GlobalTracer.Span(ctx, "clone-remote-volumes", map[string]string{})
-	ctx = tracing.WithSpan(ctx, span)
+	// [cc] wrap it in a span
+	//
+	ctx, span := tracing.GlobalTracer.StartSpan(ctx, "clone-remote-volumes", map[string]string{})
 	defer span.End()
 
 	mounts := make([]VolumeMount, len(nonLocals))
@@ -607,11 +605,10 @@ func (worker *gardenWorker) cloneRemoteVolumes(
 		}
 
 		g.Go(func() error {
-			span := tracing.GlobalTracer.Span(ctx, "task", map[string]string{
+			_, span := tracing.GlobalTracer.StartSpan(ctx, "stream-to", map[string]string{
 				"dest-volume": inputVolume.Handle(),
 				"dest-worker": inputVolume.WorkerName(),
 			})
-			ctx = tracing.WithSpan(ctx, span)
 			defer span.End()
 
 			err = nonLocalInput.desiredArtifact.StreamTo(groupCtx, logger.Session("stream-to", destData), inputVolume)

@@ -23,6 +23,8 @@ func (resource *resource) Get(
 ) (VersionedSource, error) {
 	var vr VersionResult
 
+	// [cc] TODO cool place to look at too
+
 	err := resource.runScript(
 		ctx,
 		"/opt/resource/in",

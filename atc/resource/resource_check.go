@@ -17,8 +17,7 @@ func (resource *resource) Check(ctx context.Context, source atc.Source, fromVers
 
 	// [cc] wrap it in a span
 	//
-	span := tracing.GlobalTracer.Span(ctx, "run-check-cmd", map[string]string{})
-	ctx = tracing.WithSpan(ctx, span)
+	ctx, span := tracing.GlobalTracer.StartSpan(ctx, "run-check-cmd", nil)
 	defer span.End()
 
 	err := resource.runScript(

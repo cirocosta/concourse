@@ -114,7 +114,7 @@ func (step *GetStep) Run(ctx context.Context, state RunState) error {
 
 	// [cc] wrap the step in a span
 	//
-	span := tracing.GlobalTracer.Span(ctx, "get", map[string]string{
+	ctx, span := tracing.GlobalTracer.StartSpan(ctx, "get", map[string]string{
 		"name":          step.plan.Name,
 		"resource-type": step.plan.Type,
 		"resource":      step.plan.Resource,

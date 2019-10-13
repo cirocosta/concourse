@@ -30,7 +30,7 @@ func OnSuccess(firstStep Step, secondStep Step) Step {
 func (o OnSuccessStep) Run(ctx context.Context, state RunState) error {
 	// [cc] wrap the step in a span
 	//
-	span := tracing.GlobalTracer.Span(ctx, "on-success", nil)
+	ctx, span := tracing.GlobalTracer.StartSpan(ctx, "on-success", nil)
 	defer span.End()
 
 	stepRunErr := o.step.Run(ctx, state)

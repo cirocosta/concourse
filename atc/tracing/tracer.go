@@ -3,7 +3,6 @@ package tracing
 import (
 	"context"
 
-	"github.com/concourse/concourse/atc/db"
 	"go.opentelemetry.io/api/core"
 	"go.opentelemetry.io/api/key"
 	"go.opentelemetry.io/api/trace"
@@ -23,6 +22,10 @@ type (
 	// Tracer TODO
 	//
 	Tracer struct{ Tracer trace.Tracer }
+
+	// Attr TODO
+	//
+	Attr map[string]string
 )
 
 var (
@@ -30,17 +33,6 @@ var (
 	// the tracing is enabled or not (if not, no-op will be used under the hood).
 	//
 	GlobalTracer *Tracer
-
-	// attributes to set in spans
-	//
-	teamAttr     = key.New("team")
-	pipelineAttr = key.New("pipeline")
-	jobAttr      = key.New("job")
-	buildAttr    = key.New("build")
-)
-
-const (
-	buildOperationName = "build"
 )
 
 // init initializes the global tracer that can be used by anywhere in the code.
@@ -53,40 +45,22 @@ func init() {
 	}
 }
 
-// WithSpan TODO
+// LogEvent ... TODO
 //
-func WithSpan(ctx context.Context, span trace.Span) context.Context {
-	if span == nil {
-		panic("nil span")
-	}
-
-	return context.WithValue(ctx, contextRootSpanKey{}, span)
-}
-
 func AddEvent(span trace.Span, msg string, attrs map[string]string) {
 	span.AddEvent(context.Background(), msg, keyValueSlice(attrs)...)
 }
 
-// contextSpan retrieves a parent span from the context.
+// StartSpan creates a span, giving back a context that has itself added as the
+// parent.
 //
-func contextSpan(ctx context.Context) trace.Span {
-	span, _ := ctx.Value(contextRootSpanKey{}).(trace.Span)
-	return span
-}
-
-func keyValueSlice(attrs map[string]string) []core.KeyValue {
-	res := make([]core.KeyValue, len(attrs))
-
-	idx := 0
-	for k, v := range attrs {
-		res[idx] = key.New(k).String(v)
-		idx++
-	}
-
-	return res
-}
-
-func (t *Tracer) Span(ctx context.Context, stepType string, attrs map[string]string) trace.Span {
+// ps.: if `ctx` already has a span set, this span becomes a child of it.
+//
+func (t *Tracer) StartSpan(
+	ctx context.Context,
+	component string,
+	attrs map[string]string,
+) (context.Context, trace.Span) {
 	var (
 		opts       = []trace.SpanOption{}
 		parentSpan = contextSpan(ctx)
@@ -98,38 +72,14 @@ func (t *Tracer) Span(ctx context.Context, stepType string, attrs map[string]str
 
 	_, span := t.Tracer.Start(
 		context.Background(),
-		stepType,
+		component,
 		opts...,
 	)
 
 	span.SetAttributes(keyValueSlice(attrs)...)
+	ctx = withSpan(ctx, span)
 
-	return span
-}
-
-// BuildRootSpan creates a root span that represents the entire execution of a
-// build.
-//
-// ps.: `build` *must not* be nil.
-//
-func (t *Tracer) BuildRootSpan(build db.Build) trace.Span {
-	if build == nil {
-		panic("nil build")
-	}
-
-	_, span := t.Tracer.Start(
-		context.Background(),
-		buildOperationName,
-	)
-
-	span.SetAttributes(
-		teamAttr.String(build.TeamName()),
-		pipelineAttr.String(build.PipelineName()),
-		jobAttr.String(build.JobName()),
-		buildAttr.String(build.Name()),
-	)
-
-	return span
+	return ctx, span
 }
 
 // ConfigureTracer TODO
@@ -143,4 +93,33 @@ func ConfigureTracer(exporter export.SpanSyncer) {
 			DefaultSampler: sdktrace.AlwaysSample(),
 		},
 	)
+}
+
+// contextSpan retrieves a parent span from the context.
+//
+func contextSpan(ctx context.Context) trace.Span {
+	span, _ := ctx.Value(contextRootSpanKey{}).(trace.Span)
+	return span
+}
+
+// withSpan augments a context to have a span set.
+//
+func withSpan(ctx context.Context, span trace.Span) context.Context {
+	if span == nil {
+		panic("nil span")
+	}
+
+	return context.WithValue(ctx, contextRootSpanKey{}, span)
+}
+
+func keyValueSlice(attrs map[string]string) []core.KeyValue {
+	res := make([]core.KeyValue, len(attrs))
+
+	idx := 0
+	for k, v := range attrs {
+		res[idx] = key.New(k).String(v)
+		idx++
+	}
+
+	return res
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/concourse/concourse/atc/db"
 	"github.com/concourse/concourse/atc/metric"
 	"github.com/concourse/concourse/atc/resource"
+	"github.com/concourse/concourse/atc/tracing"
 	"github.com/concourse/concourse/atc/worker"
 )
 
@@ -63,6 +64,14 @@ func (step *CheckStep) Run(ctx context.Context, state RunState) error {
 	logger = logger.Session("check-step", lager.Data{
 		"step-name": step.plan.Name,
 	})
+
+	// [cc] wrap this thing
+	//
+	ctx, span := tracing.GlobalTracer.StartSpan(ctx, "check", map[string]string{
+		"name": step.plan.Name,
+		"type": step.plan.Type,
+	})
+	defer span.End()
 
 	variables := step.delegate.Variables()
 

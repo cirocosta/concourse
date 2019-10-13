@@ -240,15 +240,12 @@ func (scanner *resourceTypeScanner) check(
 		return nil
 	}
 
-	ctx := context.Background()
-
 	// [cc] trace this thing
 	//
-	span := tracing.GlobalTracer.Span(ctx, "resource-type-check", map[string]string{
+	ctx, span := tracing.GlobalTracer.StartSpan(context.Background(), "resource-type-check", tracing.Attr{
 		"type":     savedResourceType.Name(),
 		"scope-id": strconv.Itoa(resourceConfigScope.ID()),
 	})
-	ctx = tracing.WithSpan(ctx, span)
 	defer span.End()
 
 	containerSpec := worker.ContainerSpec{

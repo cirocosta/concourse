@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
@@ -169,8 +170,14 @@ func (b *engineBuild) Run(logger lager.Logger) {
 
 	// [cc] create the root span
 	//
-	buildRootSpan := tracing.GlobalTracer.BuildRootSpan(b.build)
-	defer buildRootSpan.End()
+	ctx, buildSpan := tracing.GlobalTracer.StartSpan(b.ctx, "build", tracing.Attr{
+		"team":     b.build.TeamName(),
+		"pipeline": b.build.PipelineName(),
+		"job":      b.build.JobName(),
+		"build":    b.build.Name(),
+		"id":       strconv.Itoa(b.build.ID()),
+	})
+	defer buildSpan.End()
 
 	notifier, err := b.build.AbortNotifier()
 	if err != nil {
@@ -208,11 +215,7 @@ func (b *engineBuild) Run(logger lager.Logger) {
 
 	done := make(chan error)
 	go func() {
-		ctx := lagerctx.NewContext(b.ctx, logger)
-
-		// [cc] add the root span to this ctx
-		//
-		ctx = tracing.WithSpan(ctx, buildRootSpan)
+		ctx = lagerctx.NewContext(ctx, logger)
 		done <- step.Run(ctx, state)
 	}()
 

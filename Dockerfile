@@ -12,7 +12,9 @@ RUN grep '^replace' go.mod || go mod download
 # build Concourse without using 'packr' and set up a volume so the web assets
 # live-update
 COPY . .
-RUN go build -gcflags=all="-N -l" -o /usr/local/concourse/bin/concourse \
+RUN go build \
+	-ldflags "-X github.com/concourse/concourse.Version=5.7.0" \
+	-gcflags=all="-N -l" -o /usr/local/concourse/bin/concourse \
       ./cmd/concourse
 VOLUME /src
 

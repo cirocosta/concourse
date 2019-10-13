@@ -47,8 +47,7 @@ func (step InParallelStep) Run(ctx context.Context, state RunState) error {
 
 	// [cc] wrap the step in a span
 	//
-
-	span := tracing.GlobalTracer.Span(ctx, "aggregate", map[string]string{
+	ctx, span := tracing.GlobalTracer.StartSpan(ctx, "in-parallel", map[string]string{
 		"steps": strconv.Itoa(len(step.steps)),
 	})
 	defer span.End()

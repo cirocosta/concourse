@@ -132,8 +132,7 @@ func (client *client) RunTaskStep(
 ) TaskResult {
 	// [cc] this is interesting to observe
 	//
-	span := tracing.GlobalTracer.Span(ctx, "run-task-step", nil)
-	ctx = tracing.WithSpan(ctx, span)
+	ctx, span := tracing.GlobalTracer.StartSpan(ctx, "run-task-step", nil)
 	defer span.End()
 
 	chosenWorker, err := client.chooseTaskWorker(

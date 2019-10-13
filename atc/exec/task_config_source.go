@@ -70,8 +70,7 @@ type FileConfigSource struct {
 func (configSource FileConfigSource) FetchConfig(ctx context.Context, logger lager.Logger, repo *artifact.Repository) (atc.TaskConfig, error) {
 	// [cc] wrap it in a span
 	//
-	span := tracing.GlobalTracer.Span(ctx, "fetch-config", map[string]string{})
-	ctx = tracing.WithSpan(ctx, span)
+	ctx, span := tracing.GlobalTracer.StartSpan(ctx, "fetch-config", nil)
 	defer span.End()
 
 	segs := strings.SplitN(configSource.ConfigPath, "/", 2)
