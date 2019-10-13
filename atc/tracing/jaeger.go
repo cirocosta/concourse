@@ -20,7 +20,7 @@ func (j JaegerConfig) Exporter() (export.SpanSyncer, error) {
 	exporter, err := jaeger.NewExporter(
 		jaeger.WithCollectorEndpoint(j.Endpoint),
 		jaeger.WithProcess(jaeger.Process{
-			ServiceName: "build-tracker",
+			ServiceName: "web",
 		}),
 	)
 	if err != nil {

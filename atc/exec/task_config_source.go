@@ -13,6 +13,7 @@ import (
 	"github.com/concourse/baggageclaim"
 	"github.com/concourse/concourse/atc"
 	"github.com/concourse/concourse/atc/exec/artifact"
+	"github.com/concourse/concourse/atc/tracing"
 	"github.com/concourse/concourse/vars"
 	"sigs.k8s.io/yaml"
 )
@@ -67,6 +68,12 @@ type FileConfigSource struct {
 // If the task config file is not found, or is invalid YAML, or is an invalid
 // task configuration, the respective errors will be bubbled up.
 func (configSource FileConfigSource) FetchConfig(ctx context.Context, logger lager.Logger, repo *artifact.Repository) (atc.TaskConfig, error) {
+	// [cc] wrap it in a span
+	//
+	span := tracing.GlobalTracer.Span(ctx, "fetch-config", map[string]string{})
+	ctx = tracing.WithSpan(ctx, span)
+	defer span.End()
+
 	segs := strings.SplitN(configSource.ConfigPath, "/", 2)
 	if len(segs) != 2 {
 		return atc.TaskConfig{}, UnspecifiedArtifactSourceError{configSource.ConfigPath}

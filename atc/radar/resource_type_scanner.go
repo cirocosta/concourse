@@ -3,6 +3,7 @@ package radar
 import (
 	"context"
 	"reflect"
+	"strconv"
 	"time"
 
 	"code.cloudfoundry.org/clock"
@@ -11,6 +12,7 @@ import (
 	"github.com/concourse/concourse/atc/creds"
 	"github.com/concourse/concourse/atc/db"
 	"github.com/concourse/concourse/atc/resource"
+	"github.com/concourse/concourse/atc/tracing"
 	"github.com/concourse/concourse/atc/worker"
 	"github.com/concourse/concourse/vars"
 )
@@ -226,6 +228,7 @@ func (scanner *resourceTypeScanner) check(
 	source atc.Source,
 	saveGiven bool,
 ) error {
+
 	pipelinePaused, err := scanner.dbPipeline.CheckPaused()
 	if err != nil {
 		logger.Error("failed-to-check-if-pipeline-paused", err)
@@ -236,6 +239,17 @@ func (scanner *resourceTypeScanner) check(
 		logger.Debug("pipeline-paused")
 		return nil
 	}
+
+	ctx := context.Background()
+
+	// [cc] trace this thing
+	//
+	span := tracing.GlobalTracer.Span(ctx, "resource-type-check", map[string]string{
+		"type":     savedResourceType.Name(),
+		"scope-id": strconv.Itoa(resourceConfigScope.ID()),
+	})
+	ctx = tracing.WithSpan(ctx, span)
+	defer span.End()
 
 	containerSpec := worker.ContainerSpec{
 		ImageSpec: worker.ImageSpec{
@@ -262,7 +276,7 @@ func (scanner *resourceTypeScanner) check(
 	)
 
 	chosenWorker, err := scanner.pool.FindOrChooseWorkerForContainer(
-		context.Background(),
+		ctx,
 		logger,
 		owner,
 		containerSpec,
@@ -279,7 +293,7 @@ func (scanner *resourceTypeScanner) check(
 	}
 
 	container, err := chosenWorker.FindOrCreateContainer(
-		context.Background(),
+		ctx,
 		logger,
 		worker.NoopImageFetchingDelegate{},
 		db.NewResourceConfigCheckSessionContainerOwner(
@@ -303,7 +317,7 @@ func (scanner *resourceTypeScanner) check(
 	}
 
 	res := scanner.resourceFactory.NewResourceForContainer(container)
-	newVersions, err := res.Check(context.TODO(), source, fromVersion)
+	newVersions, err := res.Check(ctx, source, fromVersion)
 	resourceConfigScope.SetCheckError(err)
 	if err != nil {
 		if rErr, ok := err.(resource.ErrResourceScriptFailed); ok {

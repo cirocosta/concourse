@@ -14,6 +14,7 @@ import (
 	"github.com/concourse/concourse/atc/db"
 	"github.com/concourse/concourse/atc/db/lock"
 	"github.com/concourse/concourse/atc/runtime"
+	"github.com/concourse/concourse/atc/tracing"
 	multierror "github.com/hashicorp/go-multierror"
 )
 
@@ -129,6 +130,12 @@ func (client *client) RunTaskStep(
 	processSpec TaskProcessSpec,
 	events chan runtime.Event,
 ) TaskResult {
+	// [cc] this is interesting to observe
+	//
+	span := tracing.GlobalTracer.Span(ctx, "run-task-step", nil)
+	ctx = tracing.WithSpan(ctx, span)
+	defer span.End()
+
 	chosenWorker, err := client.chooseTaskWorker(
 		ctx,
 		logger,

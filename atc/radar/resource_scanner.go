@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strconv"
 	"time"
 
 	"code.cloudfoundry.org/clock"
@@ -14,6 +15,7 @@ import (
 	"github.com/concourse/concourse/atc/db"
 	"github.com/concourse/concourse/atc/metric"
 	"github.com/concourse/concourse/atc/resource"
+	"github.com/concourse/concourse/atc/tracing"
 	"github.com/concourse/concourse/atc/worker"
 	"github.com/concourse/concourse/vars"
 )
@@ -285,6 +287,17 @@ func (scanner *resourceScanner) check(
 		return nil
 	}
 
+	ctx := context.Background()
+
+	// [cc] trace this thing
+	//
+	span := tracing.GlobalTracer.Span(ctx, "resource-check", map[string]string{
+		"type":     savedResource.Type(),
+		"scope-id": strconv.Itoa(resourceConfigScope.ID()),
+	})
+	ctx = tracing.WithSpan(ctx, span)
+	defer span.End()
+
 	found, err := scanner.dbPipeline.Reload()
 	if err != nil {
 		logger.Error("failed-to-reload-scannerdb", err)
@@ -327,7 +340,7 @@ func (scanner *resourceScanner) check(
 	)
 
 	chosenWorker, err := scanner.pool.FindOrChooseWorkerForContainer(
-		context.Background(),
+		ctx,
 		logger,
 		owner,
 		containerSpec,
@@ -344,7 +357,7 @@ func (scanner *resourceScanner) check(
 	}
 
 	container, err := chosenWorker.FindOrCreateContainer(
-		context.Background(),
+		ctx,
 		logger,
 		worker.NoopImageFetchingDelegate{},
 		owner,
@@ -374,7 +387,7 @@ func (scanner *resourceScanner) check(
 		"from": fromVersion,
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	res := scanner.resourceFactory.NewResourceForContainer(container)

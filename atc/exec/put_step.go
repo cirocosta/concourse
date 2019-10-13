@@ -9,6 +9,7 @@ import (
 	"github.com/concourse/concourse/atc/creds"
 	"github.com/concourse/concourse/atc/db"
 	"github.com/concourse/concourse/atc/resource"
+	"github.com/concourse/concourse/atc/tracing"
 	"github.com/concourse/concourse/atc/worker"
 )
 
@@ -76,6 +77,15 @@ func (step *PutStep) Run(ctx context.Context, state RunState) error {
 		"step-name": step.plan.Name,
 		"job-id":    step.metadata.JobID,
 	})
+
+	// [cc] wrap the step in a span
+	//
+	span := tracing.GlobalTracer.Span(ctx, "put", map[string]string{
+		"name":          step.plan.Name,
+		"resource-type": step.plan.Type,
+		"resource":      step.plan.Resource,
+	})
+	defer span.End()
 
 	step.delegate.Initializing(logger)
 

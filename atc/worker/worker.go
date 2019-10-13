@@ -9,16 +9,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/concourse/baggageclaim"
-	"github.com/concourse/concourse/atc/metric"
-	"github.com/concourse/concourse/atc/worker/gclient"
-	"golang.org/x/sync/errgroup"
-
 	"code.cloudfoundry.org/garden"
 	"code.cloudfoundry.org/lager"
+	"github.com/concourse/baggageclaim"
 	"github.com/concourse/concourse/atc"
 	"github.com/concourse/concourse/atc/db"
+	"github.com/concourse/concourse/atc/metric"
+	"github.com/concourse/concourse/atc/tracing"
+	"github.com/concourse/concourse/atc/worker/gclient"
 	"github.com/cppforlife/go-semi-semantic/version"
+	"golang.org/x/sync/errgroup"
 )
 
 const userPropertyName = "user"
@@ -190,6 +190,12 @@ func (worker *gardenWorker) FindOrCreateContainer(
 		err               error
 	)
 
+	// [cc] wrap it in a span
+	//
+	span := tracing.GlobalTracer.Span(ctx, "find-or-create-container", map[string]string{})
+	ctx = tracing.WithSpan(ctx, span)
+	defer span.End()
+
 	// ensure either creatingContainer or createdContainer exists
 	creatingContainer, createdContainer, err = worker.dbWorker.FindContainer(owner)
 	if err != nil {
@@ -343,6 +349,14 @@ func (worker *gardenWorker) fetchImageForContainer(
 	resourceTypes atc.VersionedResourceTypes,
 	creatingContainer db.CreatingContainer,
 ) (FetchedImage, error) {
+	// [cc] wrap the step in a span
+	//
+	span := tracing.GlobalTracer.Span(ctx, "fetch-image-for-container", map[string]string{
+		"resource-type": spec.ResourceType,
+	})
+	ctx = tracing.WithSpan(ctx, span)
+	defer span.End()
+
 	image, err := worker.imageFactory.GetImage(
 		logger,
 		worker,
@@ -384,6 +398,12 @@ func (worker *gardenWorker) createVolumes(
 ) ([]VolumeMount, error) {
 	var volumeMounts []VolumeMount
 	var ioVolumeMounts []VolumeMount
+
+	// [cc] wrap it in a span
+	//
+	span := tracing.GlobalTracer.Span(ctx, "create-volumes", map[string]string{})
+	ctx = tracing.WithSpan(ctx, span)
+	defer span.End()
 
 	scratchVolume, err := worker.volumeClient.FindOrCreateVolumeForContainer(
 		logger,
@@ -558,6 +578,10 @@ func (worker *gardenWorker) cloneRemoteVolumes(
 	container db.CreatingContainer,
 	nonLocals []mountableRemoteInput,
 ) ([]VolumeMount, error) {
+	span := tracing.GlobalTracer.Span(ctx, "clone-remote-volumes", map[string]string{})
+	ctx = tracing.WithSpan(ctx, span)
+	defer span.End()
+
 	mounts := make([]VolumeMount, len(nonLocals))
 	g, groupCtx := errgroup.WithContext(ctx)
 
@@ -583,6 +607,13 @@ func (worker *gardenWorker) cloneRemoteVolumes(
 		}
 
 		g.Go(func() error {
+			span := tracing.GlobalTracer.Span(ctx, "task", map[string]string{
+				"dest-volume": inputVolume.Handle(),
+				"dest-worker": inputVolume.WorkerName(),
+			})
+			ctx = tracing.WithSpan(ctx, span)
+			defer span.End()
+
 			err = nonLocalInput.desiredArtifact.StreamTo(groupCtx, logger.Session("stream-to", destData), inputVolume)
 			if err != nil {
 				return err

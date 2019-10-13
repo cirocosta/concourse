@@ -7,6 +7,7 @@ import (
 	"io"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"code.cloudfoundry.org/lager"
@@ -17,6 +18,7 @@ import (
 	"github.com/concourse/concourse/atc/db/lock"
 	"github.com/concourse/concourse/atc/exec/artifact"
 	"github.com/concourse/concourse/atc/runtime"
+	"github.com/concourse/concourse/atc/tracing"
 	"github.com/concourse/concourse/atc/worker"
 	"github.com/concourse/concourse/vars"
 )
@@ -115,6 +117,16 @@ func NewTaskStep(
 // task's entire working directory is registered as an ArtifactSource under the
 // name of the task.
 func (step *TaskStep) Run(ctx context.Context, state RunState) error {
+
+	// [cc] wrap the step in a span
+	//
+	span := tracing.GlobalTracer.Span(ctx, "task", map[string]string{
+		"name":       step.plan.Name,
+		"privileged": strconv.FormatBool(step.plan.Privileged),
+	})
+	ctx = tracing.WithSpan(ctx, span)
+	defer span.End()
+
 	logger := lagerctx.FromContext(ctx)
 	logger = logger.Session("task-step", lager.Data{
 		"step-name": step.plan.Name,
@@ -156,6 +168,8 @@ func (step *TaskStep) Run(ctx context.Context, state RunState) error {
 
 	repository := state.Artifacts()
 
+	// [cc] might be intresting to trace this as it touches the net
+	//
 	config, err := taskConfigSource.FetchConfig(ctx, logger, repository)
 
 	for _, warning := range taskConfigSource.Warnings() {
@@ -202,6 +216,8 @@ func (step *TaskStep) Run(ctx context.Context, state RunState) error {
 	events := make(chan runtime.Event, 1)
 	go func(logger lager.Logger, config atc.TaskConfig, events chan runtime.Event, delegate TaskDelegate) {
 		for ev := range events {
+			tracing.AddEvent(span, ev.EventType, nil)
+
 			switch ev.EventType {
 			case runtime.InitializingEvent:
 				step.delegate.Initializing(logger, config)

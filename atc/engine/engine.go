@@ -212,9 +212,7 @@ func (b *engineBuild) Run(logger lager.Logger) {
 
 		// [cc] add the root span to this ctx
 		//
-		// ctx = context.WithValue(ctx, tracing.ContextRootSpanKey, buildRootSpan)
-		//
-
+		ctx = tracing.WithSpan(ctx, buildRootSpan)
 		done <- step.Run(ctx, state)
 	}()
 
