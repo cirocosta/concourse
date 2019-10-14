@@ -8,6 +8,7 @@ import (
 	"io"
 
 	"code.cloudfoundry.org/garden"
+	"github.com/concourse/concourse/atc/tracing"
 )
 
 const resourceResultPropertyName = "concourse:resource-result"
@@ -46,6 +47,13 @@ func (resource *resource) runScript(
 	logDest io.Writer,
 	recoverable bool,
 ) error {
+	// [cc] wrap it in a span
+	//
+	ctx, span := tracing.GlobalTracer.StartSpan(ctx, "run-script", tracing.Attr{
+		"path": path,
+	})
+	defer span.End()
+
 	request, err := json.Marshal(input)
 	if err != nil {
 		return err
