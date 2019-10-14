@@ -1,5 +1,8 @@
 package tracing
 
+//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 go.opentelemetry.io/api/trace.Tracer
+//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 go.opentelemetry.io/api/trace.Span
+
 import (
 	"context"
 
@@ -7,11 +10,6 @@ import (
 	"go.opentelemetry.io/sdk/export"
 	sdktrace "go.opentelemetry.io/sdk/trace"
 )
-
-//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 go.opentelemetry.io/api/trace.Tracer
-//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 go.opentelemetry.io/api/trace.Span
-
-type Attrs map[string]string
 
 // StartSpan creates a span, giving back a context that has itself added as the
 // parent span.
@@ -23,23 +21,12 @@ func StartSpan(
 	component string,
 	attrs Attrs,
 ) (context.Context, trace.Span) {
-	var (
-		opts       = []trace.SpanOption{}
-		parentSpan = contextSpan(ctx)
-	)
-
-	if parentSpan != nil {
-		opts = append(opts, trace.ChildOf(parentSpan.SpanContext()))
-	}
-
-	_, span := trace.GlobalTracer().Start(
-		context.Background(),
+	ctx, span := trace.GlobalTracer().Start(
+		ctx,
 		component,
-		opts...,
 	)
 
 	span.SetAttributes(keyValueSlice(attrs)...)
-	ctx = withSpan(ctx, span)
 
 	return ctx, span
 }

@@ -3,10 +3,9 @@ package tracing_test
 import (
 	"context"
 
-	"github.com/concourse/concourse/atc/db"
-	"github.com/concourse/concourse/atc/db/dbfakes"
 	"github.com/concourse/concourse/atc/tracing"
 	"github.com/concourse/concourse/atc/tracing/tracingfakes"
+	"go.opentelemetry.io/api/core"
 	"go.opentelemetry.io/api/key"
 	"go.opentelemetry.io/api/trace"
 
@@ -17,90 +16,59 @@ import (
 var _ = Describe("Tracer", func() {
 
 	var (
-		tracer tracing.Tracer
-		span   trace.Span
+		fakeSpan *tracingfakes.FakeSpan
 	)
 
 	BeforeEach(func() {
-		fakeSpan := new(tracingfakes.FakeSpan)
 		fakeTracer := new(tracingfakes.FakeTracer)
+		fakeSpan = new(tracingfakes.FakeSpan)
 
 		fakeTracer.StartReturns(
 			context.Background(),
 			fakeSpan,
 		)
 
-		tracer = tracing.Tracer{fakeTracer}
+		trace.SetGlobalTracer(fakeTracer)
 	})
 
 	Describe("StartSpan", func() {
 
-		Context("with empty context", func() {
-
-			It("starts root span", func() {
-
-			})
-
-		})
-
-		Context("with span-based context", func() {
-
-			It("starts child span", func() {
-
-			})
-
-		})
-
-	})
-
-	Describe("BuildRootSpan", func() {
-
 		var (
-			build db.Build
+			ctx  context.Context
+			span trace.Span
+
+			component = "a"
+			attrs     = tracing.Attrs{}
 		)
 
-		Context("without a build (programming error)", func() {
-			It("panics", func() {
-				Expect(func() {
-					tracer.BuildRootSpan(build)
-				}).To(Panic())
-			})
+		JustBeforeEach(func() {
+			_, span = tracing.StartSpan(ctx, component, attrs)
 		})
 
-		Context("with a build", func() {
+		It("creates a span", func() {
+			Expect(span).ToNot(BeNil())
+		})
+
+		Context("with attributes", func() {
 
 			BeforeEach(func() {
-				fakeBuild := new(dbfakes.FakeBuild)
-
-				fakeBuild.NameReturns("build-name")
-				fakeBuild.JobNameReturns("job-name")
-				fakeBuild.PipelineNameReturns("pipeline-name")
-				fakeBuild.TeamNameReturns("team-name")
-
-				build = fakeBuild
+				attrs = tracing.Attrs{
+					"foo": "bar",
+					"zaz": "caz",
+				}
 			})
 
-			JustBeforeEach(func() {
-				span = tracer.BuildRootSpan(build)
-			})
+			It("sets the attributes passed in", func() {
+				Expect(fakeSpan.SetAttributesCallCount()).To(Equal(1))
 
-			It("creates a span", func() {
-				Expect(span).ToNot(BeNil())
-			})
-
-			It("has build attributes set", func() {
-				fakeSpan := span.(*tracingfakes.FakeSpan)
-				kvs := fakeSpan.SetAttributesArgsForCall(0)
-
-				Expect(kvs).ToNot(BeEmpty())
-				Expect(kvs).To(ConsistOf(
-					key.New("team").String("team-name"),
-					key.New("pipeline").String("pipeline-name"),
-					key.New("job").String("job-name"),
-					key.New("build").String("build-name"),
-				))
+				attrs := fakeSpan.SetAttributesArgsForCall(0)
+				Expect(attrs).To(ConsistOf([]core.KeyValue{
+					key.New("foo").String("bar"),
+					key.New("zaz").String("caz"),
+				}))
 			})
 		})
+
 	})
 
 })
