@@ -7,16 +7,18 @@ import (
 	"go.opentelemetry.io/sdk/export"
 )
 
-type JaegerConfig struct {
+// Jaeger TODO
+//
+type Jaeger struct {
 	Endpoint  string `long:"tracing-jaeger-endpoint"`
-	Component string `long:"tracing-jaeger-component" default:"build-tracker"`
+	Component string `long:"tracing-jaeger-component" default:"web"`
 }
 
-func (j JaegerConfig) IsConfigured() bool {
+func (j Jaeger) IsConfigured() bool {
 	return j.Endpoint != ""
 }
 
-func (j JaegerConfig) Exporter() (export.SpanSyncer, error) {
+func (j Jaeger) Exporter() (export.SpanSyncer, error) {
 	exporter, err := jaeger.NewExporter(
 		jaeger.WithCollectorEndpoint(j.Endpoint),
 		jaeger.WithProcess(jaeger.Process{

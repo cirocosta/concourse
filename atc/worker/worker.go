@@ -192,7 +192,7 @@ func (worker *gardenWorker) FindOrCreateContainer(
 
 	// [cc] wrap it in a span
 	//
-	ctx, span := tracing.GlobalTracer.StartSpan(ctx, "find-or-create-container", nil)
+	ctx, span := tracing.StartSpan(ctx, "find-or-create-container", nil)
 	defer span.End()
 
 	// ensure either creatingContainer or createdContainer exists
@@ -350,7 +350,7 @@ func (worker *gardenWorker) fetchImageForContainer(
 ) (FetchedImage, error) {
 	// [cc] wrap the step in a span
 	//
-	ctx, span := tracing.GlobalTracer.StartSpan(ctx, "fetch-image-for-container", map[string]string{
+	ctx, span := tracing.StartSpan(ctx, "fetch-image-for-container", map[string]string{
 		"resource-type": spec.ResourceType,
 	})
 	defer span.End()
@@ -399,7 +399,7 @@ func (worker *gardenWorker) createVolumes(
 
 	// [cc] wrap it in a span
 	//
-	ctx, span := tracing.GlobalTracer.StartSpan(ctx, "create-volumes", nil)
+	ctx, span := tracing.StartSpan(ctx, "create-volumes", nil)
 	defer span.End()
 
 	scratchVolume, err := worker.volumeClient.FindOrCreateVolumeForContainer(
@@ -577,7 +577,7 @@ func (worker *gardenWorker) cloneRemoteVolumes(
 ) ([]VolumeMount, error) {
 	// [cc] wrap it in a span
 	//
-	ctx, span := tracing.GlobalTracer.StartSpan(ctx, "clone-remote-volumes", map[string]string{})
+	ctx, span := tracing.StartSpan(ctx, "clone-remote-volumes", map[string]string{})
 	defer span.End()
 
 	mounts := make([]VolumeMount, len(nonLocals))
@@ -605,7 +605,7 @@ func (worker *gardenWorker) cloneRemoteVolumes(
 		}
 
 		g.Go(func() error {
-			_, span := tracing.GlobalTracer.StartSpan(ctx, "stream-to", map[string]string{
+			_, span := tracing.StartSpan(ctx, "stream-to", map[string]string{
 				"dest-volume": inputVolume.Handle(),
 				"dest-worker": inputVolume.WorkerName(),
 			})

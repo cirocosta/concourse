@@ -114,7 +114,7 @@ func (step *GetStep) Run(ctx context.Context, state RunState) error {
 
 	// [cc] wrap the step in a span
 	//
-	ctx, span := tracing.GlobalTracer.StartSpan(ctx, "get", map[string]string{
+	ctx, span := tracing.StartSpan(ctx, "get", map[string]string{
 		"name":          step.plan.Name,
 		"resource-type": step.plan.Type,
 		"resource":      step.plan.Resource,
@@ -202,10 +202,6 @@ func (step *GetStep) Run(ctx context.Context, state RunState) error {
 	}
 
 	step.delegate.Starting(logger)
-
-	tracing.AddEvent(span, "start", map[string]string{
-		"chosen-worker": chosenWorker.Name(),
-	})
 
 	versionedSource, err := step.resourceFetcher.Fetch(
 		ctx,

@@ -132,7 +132,7 @@ func (client *client) RunTaskStep(
 ) TaskResult {
 	// [cc] this is interesting to observe
 	//
-	ctx, span := tracing.GlobalTracer.StartSpan(ctx, "run-task-step", nil)
+	ctx, span := tracing.StartSpan(ctx, "run-task-step", nil)
 	defer span.End()
 
 	chosenWorker, err := client.chooseTaskWorker(
@@ -187,7 +187,7 @@ func (client *client) RunTaskStep(
 		Stderr: processSpec.StderrWriter,
 	}
 
-	process, err := container.Attach(context.Background(), taskProcessID, processIO)
+	process, err := container.Attach(ctx, taskProcessID, processIO)
 	if err == nil {
 		logger.Info("already-running")
 	} else {
@@ -198,7 +198,7 @@ func (client *client) RunTaskStep(
 		}
 
 		process, err = container.Run(
-			context.Background(),
+			ctx,
 			garden.ProcessSpec{
 				ID: taskProcessID,
 

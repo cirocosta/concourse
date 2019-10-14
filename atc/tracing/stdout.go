@@ -7,17 +7,15 @@ import (
 	"go.opentelemetry.io/sdk/export"
 )
 
-type StdoutConfig struct {
+type Stdout struct {
 	Configured bool `long:"tracing-stdout"`
 }
 
-func (s StdoutConfig) IsConfigured() bool {
+func (s Stdout) IsConfigured() bool {
 	return s.Configured
 }
 
-// InitializeStdoutExporter
-//
-func (s StdoutConfig) Exporter() (export.SpanSyncer, error) {
+func (s Stdout) Exporter() (export.SpanSyncer, error) {
 	exporter, err := stdout.NewExporter(stdout.Options{PrettyPrint: false})
 	if err != nil {
 		err = fmt.Errorf("failed to create stdout exporter: %w", err)

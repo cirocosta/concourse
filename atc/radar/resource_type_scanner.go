@@ -242,7 +242,7 @@ func (scanner *resourceTypeScanner) check(
 
 	// [cc] trace this thing
 	//
-	ctx, span := tracing.GlobalTracer.StartSpan(context.Background(), "resource-type-check", tracing.Attr{
+	ctx, span := tracing.StartSpan(context.Background(), "resource-type-check", tracing.Attrs{
 		"type":     savedResourceType.Name(),
 		"scope-id": strconv.Itoa(resourceConfigScope.ID()),
 	})

@@ -289,7 +289,7 @@ func (scanner *resourceScanner) check(
 
 	// [cc] trace this thing
 	//
-	ctx, span := tracing.GlobalTracer.StartSpan(context.Background(), "resource-check", map[string]string{
+	ctx, span := tracing.StartSpan(context.Background(), "resource-check", map[string]string{
 		"type":     savedResource.Type(),
 		"scope-id": strconv.Itoa(resourceConfigScope.ID()),
 	})

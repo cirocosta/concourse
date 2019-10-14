@@ -147,8 +147,8 @@ type RunCommand struct {
 	} `group:"Metrics & Diagnostics"`
 
 	Tracing struct {
-		Jaeger tracing.JaegerConfig
-		Stdout tracing.StdoutConfig
+		Jaeger tracing.Jaeger
+		Stdout tracing.Stdout
 	} `group:"Tracing"`
 
 	Server struct {

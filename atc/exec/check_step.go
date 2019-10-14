@@ -67,7 +67,7 @@ func (step *CheckStep) Run(ctx context.Context, state RunState) error {
 
 	// [cc] wrap this thing
 	//
-	ctx, span := tracing.GlobalTracer.StartSpan(ctx, "check", map[string]string{
+	ctx, span := tracing.StartSpan(ctx, "check", map[string]string{
 		"name": step.plan.Name,
 		"type": step.plan.Type,
 	})
@@ -148,15 +148,15 @@ func (step *CheckStep) Run(ctx context.Context, state RunState) error {
 		return err
 	}
 
-	deadline, cancel := context.WithTimeout(ctx, timeout)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	checkable := step.resourceFactory.NewResourceForContainer(container)
 
-	versions, err := checkable.Check(deadline, source, step.plan.FromVersion)
+	versions, err := checkable.Check(ctx, source, step.plan.FromVersion)
 	if err != nil {
 		if err == context.DeadlineExceeded {
-			return fmt.Errorf("Timed out after %v while checking for new versions", timeout)
+			return fmt.Errorf("timed out after %v while checking for new versions", timeout)
 		}
 		return err
 	}

@@ -80,7 +80,7 @@ func (step *PutStep) Run(ctx context.Context, state RunState) error {
 
 	// [cc] wrap the step in a span
 	//
-	ctx, span := tracing.GlobalTracer.StartSpan(ctx, "put", map[string]string{
+	ctx, span := tracing.StartSpan(ctx, "put", map[string]string{
 		"name":          step.plan.Name,
 		"resource-type": step.plan.Type,
 		"resource":      step.plan.Resource,

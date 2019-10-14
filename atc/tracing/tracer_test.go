@@ -33,6 +33,26 @@ var _ = Describe("Tracer", func() {
 		tracer = tracing.Tracer{fakeTracer}
 	})
 
+	Describe("StartSpan", func() {
+
+		Context("with empty context", func() {
+
+			It("starts root span", func() {
+
+			})
+
+		})
+
+		Context("with span-based context", func() {
+
+			It("starts child span", func() {
+
+			})
+
+		})
+
+	})
+
 	Describe("BuildRootSpan", func() {
 
 		var (

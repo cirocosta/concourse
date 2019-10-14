@@ -170,7 +170,7 @@ func (b *engineBuild) Run(logger lager.Logger) {
 
 	// [cc] create the root span
 	//
-	ctx, buildSpan := tracing.GlobalTracer.StartSpan(b.ctx, "build", tracing.Attr{
+	ctx, buildSpan := tracing.StartSpan(b.ctx, "build", tracing.Attrs{
 		"team":     b.build.TeamName(),
 		"pipeline": b.build.PipelineName(),
 		"job":      b.build.JobName(),

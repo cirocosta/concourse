@@ -49,7 +49,7 @@ func (resource *resource) runScript(
 ) error {
 	// [cc] wrap it in a span
 	//
-	ctx, span := tracing.GlobalTracer.StartSpan(ctx, "run-script", tracing.Attr{
+	ctx, span := tracing.StartSpan(ctx, "run-script", tracing.Attrs{
 		"path": path,
 	})
 	defer span.End()

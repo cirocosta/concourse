@@ -116,15 +116,20 @@ func NewTaskStep(
 // are registered with the artifact.Repository. If no outputs are specified, the
 // task's entire working directory is registered as an ArtifactSource under the
 // name of the task.
-func (step *TaskStep) Run(ctx context.Context, state RunState) error {
+func (step *TaskStep) Run(ctx context.Context, state RunState) (err error) {
 
 	// [cc] wrap the step in a span
 	//
-	ctx, span := tracing.GlobalTracer.StartSpan(ctx, "task", map[string]string{
+	ctx, span := tracing.StartSpan(ctx, "task", map[string]string{
 		"name":       step.plan.Name,
 		"privileged": strconv.FormatBool(step.plan.Privileged),
 	})
-	defer span.End()
+	defer func() {
+		if err != nil {
+			span.SetStatus(13)
+		}
+		span.End()
+	}()
 
 	logger := lagerctx.FromContext(ctx)
 	logger = logger.Session("task-step", lager.Data{
@@ -136,7 +141,7 @@ func (step *TaskStep) Run(ctx context.Context, state RunState) error {
 
 	resourceTypes, err := creds.NewVersionedResourceTypes(variables, step.plan.VersionedResourceTypes).Evaluate()
 	if err != nil {
-		return err
+		return
 	}
 
 	var taskConfigSource TaskConfigSource
@@ -167,16 +172,13 @@ func (step *TaskStep) Run(ctx context.Context, state RunState) error {
 
 	repository := state.Artifacts()
 
-	// [cc] might be intresting to trace this as it touches the net
-	//
 	config, err := taskConfigSource.FetchConfig(ctx, logger, repository)
-
 	for _, warning := range taskConfigSource.Warnings() {
 		fmt.Fprintln(step.delegate.Stderr(), "[WARNING]", warning)
 	}
 
 	if err != nil {
-		return err
+		return
 	}
 
 	if config.Limits.CPU == nil {
@@ -190,12 +192,12 @@ func (step *TaskStep) Run(ctx context.Context, state RunState) error {
 
 	workerSpec, err := step.workerSpec(logger, resourceTypes, repository, config)
 	if err != nil {
-		return err
+		return
 	}
 
 	containerSpec, err := step.containerSpec(logger, repository, config, step.containerMetadata)
 	if err != nil {
-		return err
+		return
 	}
 
 	processSpec := worker.TaskProcessSpec{
@@ -215,8 +217,6 @@ func (step *TaskStep) Run(ctx context.Context, state RunState) error {
 	events := make(chan runtime.Event, 1)
 	go func(logger lager.Logger, config atc.TaskConfig, events chan runtime.Event, delegate TaskDelegate) {
 		for ev := range events {
-			tracing.AddEvent(span, ev.EventType, nil)
-
 			switch ev.EventType {
 			case runtime.InitializingEvent:
 				step.delegate.Initializing(logger, config)
@@ -251,10 +251,11 @@ func (step *TaskStep) Run(ctx context.Context, state RunState) error {
 		if err == context.Canceled || err == context.DeadlineExceeded {
 			registerErr := step.registerOutputs(logger, repository, config, result.VolumeMounts, step.containerMetadata)
 			if registerErr != nil {
-				return registerErr
+				err = registerErr
+				return
 			}
 		}
-		return err
+		return
 	}
 
 	step.succeeded = (result.Status == 0)
@@ -262,19 +263,18 @@ func (step *TaskStep) Run(ctx context.Context, state RunState) error {
 
 	err = step.registerOutputs(logger, repository, config, result.VolumeMounts, step.containerMetadata)
 	if err != nil {
-		return err
+		return
 	}
 
 	// Do not initialize caches for one-off builds
 	if step.metadata.JobID != 0 {
 		err = step.registerCaches(logger, repository, config, result.VolumeMounts, step.containerMetadata)
 		if err != nil {
-			return err
+			return
 		}
 	}
 
-	return nil
-
+	return
 }
 
 func (step *TaskStep) Succeeded() bool {

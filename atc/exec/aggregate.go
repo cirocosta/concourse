@@ -24,7 +24,7 @@ func (step AggregateStep) Run(ctx context.Context, state RunState) error {
 
 	// [cc] wrap the step in a span
 	//
-	ctx, span := tracing.GlobalTracer.StartSpan(ctx, "aggregate", map[string]string{
+	ctx, span := tracing.StartSpan(ctx, "aggregate", map[string]string{
 		"steps": strconv.Itoa(len(step)),
 	})
 	defer span.End()
