@@ -37,13 +37,14 @@ type environment struct {
 	ConcourseImageTag    string `env:"CONCOURSE_IMAGE_TAG"`
 	FlyPath              string `env:"FLY_PATH"`
 	K8sEngine            string `env:"K8S_ENGINE" envDefault:"GKE"`
+	InCluster            bool   `env:"IN_CLUSTER" envDefault:"false"`
 }
 
 var (
-	Environment environment
-	fly         FlyCli
-	namespace   string
-	releaseName string
+	Environment            environment
+	endpointFactory        EndpointFactory
+	fly                    FlyCli
+	releaseName, namespace string
 )
 
 var _ = SynchronizedBeforeSuite(func() []byte {
@@ -91,6 +92,11 @@ var _ = BeforeEach(func() {
 		Home:   filepath.Join(tmp, "fly-home-"+strconv.Itoa(GinkgoParallelNode())),
 	}
 
+	endpointFactory = PortForwardingEndpointFactory{}
+	if Environment.InCluster {
+		endpointFactory = AddressEndpointFactory{}
+	}
+
 	err = os.Mkdir(fly.Home, 0755)
 	Expect(err).ToNot(HaveOccurred())
 })
@@ -101,6 +107,23 @@ func setReleaseNameAndNamespace(description string) {
 	namespace = releaseName
 }
 
+// service corresponds to the Json object that represents a Kuberneted service
+// from the apiserver perspective.
+//
+type service struct {
+	Metadata struct {
+		Name      string `json:"name"`
+		Namespace string `json:"namespace"`
+	} `json:"metadata"`
+	Spec struct {
+		ClusterIP string `json:"clusterIP"`
+		Type      string `json:"type"`
+	} `json:"spec"`
+}
+
+// pod corresponds to the Json object that represents a Kuberneted pod from the
+// apiserver perspective.
+//
 type pod struct {
 	Status struct {
 		ContainerStatuses []struct {
@@ -116,8 +139,131 @@ type pod struct {
 	} `json:"metadata"`
 }
 
-type podListResponse struct {
-	Items []pod `json:"items"`
+// Endpoint represents a service that can be reached from a given address.
+//
+type Endpoint interface {
+	Address() (addr string)
+	Close() (err error)
+}
+
+// EndpointFactory represents those entities able to generate Endpoints for
+// both services and pods.
+//
+type EndpointFactory interface {
+	NewServiceEndpoint(namespace, service, port string) (endpoint Endpoint)
+	NewPodEndpoint(namespace, pod, port string) (endpoint Endpoint)
+}
+
+// PortForwardingEndpoint is a service that can be reached through a local
+// address, having connections port forwarded to entities in a cluster.
+//
+type PortForwardingEndpoint struct {
+	session *gexec.Session
+	address string
+}
+
+func (p PortForwardingEndpoint) Address() string {
+	return p.address
+}
+
+func (p PortForwardingEndpoint) Close() error {
+	p.session.Interrupt()
+	return nil
+}
+
+// AddressEndpoint TODO
+//
+type AddressEndpoint struct {
+	address string
+}
+
+func (p AddressEndpoint) Address() string {
+	return p.address
+}
+
+func (p AddressEndpoint) Close() error {
+	return nil
+}
+
+// PortForwardingFactory deals with creating endpoints that reach the targets
+// through port-forwarding.
+//
+type PortForwardingEndpointFactory struct{}
+
+func (f PortForwardingEndpointFactory) NewServiceEndpoint(namespace, service, port string) Endpoint {
+	session, address := portForward(namespace, "service/"+service, port)
+
+	return PortForwardingEndpoint{
+		session: session,
+		address: address,
+	}
+}
+
+func (f PortForwardingEndpointFactory) NewPodEndpoint(namespace, pod, port string) Endpoint {
+	session, address := portForward(namespace, "pod/"+pod, port)
+
+	return PortForwardingEndpoint{
+		session: session,
+		address: address,
+	}
+}
+
+// AddressFactory deals with creating endpoints that reach the targets
+// through port-forwarding.
+//
+type AddressEndpointFactory struct{}
+
+func (f AddressEndpointFactory) NewServiceEndpoint(namespace, service, port string) Endpoint {
+	address := serviceAddress(namespace, service)
+
+	return AddressEndpoint{
+		address: address + ":" + port,
+	}
+}
+
+func (f AddressEndpointFactory) NewPodEndpoint(namespace, pod, port string) Endpoint {
+	address := podAddress(namespace, pod)
+
+	return AddressEndpoint{
+		address: address + ":" + port,
+	}
+}
+
+// podAddress TODO
+//
+func podAddress(namespace, pod string) (address string) {
+	pods := getPods(namespace, pod)
+	Expect(pods).To(HaveLen(1))
+
+	return pods[0].Status.Ip
+}
+
+// serviceAddress retrieves the ClusterIP address of a service on a given
+// namespace.
+//
+func serviceAddress(namespace, serviceName string) (address string) {
+	svc := getService(namespace, serviceName)
+	return svc.Spec.ClusterIP
+}
+
+// portForward establishes a port-forwarding session against a given kubernetes
+// resource, for a particular port.
+//
+func portForward(namespace, resource, port string) (*gexec.Session, string) {
+	sess := Start(nil,
+		"kubectl", "port-forward",
+		"--namespace="+namespace,
+		resource,
+		":"+port,
+	)
+
+	Eventually(sess.Out).Should(gbytes.Say("Forwarding"))
+
+	address := regexp.MustCompile(`127\.0\.0\.1:[0-9]+`).
+		FindStringSubmatch(string(sess.Out.Contents()))
+	Expect(address).NotTo(BeEmpty())
+
+	return sess, address[0]
 }
 
 func helmDeploy(releaseName, namespace, chartDir string, args ...string) *gexec.Session {
@@ -181,9 +327,30 @@ func helmDestroy(releaseName string) {
 	Wait(Start(nil, "helm", helmArgs...))
 }
 
+func getService(namespace, name string) service {
+	var (
+		args = []string{
+			"--namespace=" + namespace,
+			"--output=json",
+		}
+		svc = service{}
+	)
+
+	session := Start(nil, "kubectl", args...)
+	Wait(session)
+
+	err := json.Unmarshal(session.Out.Contents(), &svc)
+	Expect(err).ToNot(HaveOccurred())
+
+	return svc
+}
+
 func getPods(namespace string, flags ...string) []pod {
 	var (
-		pods podListResponse
+		pods struct {
+			Items []pod `json:"items"`
+		}
+
 		args = append([]string{"get", "pods",
 			"--namespace=" + namespace,
 			"--output=json",
@@ -251,6 +418,8 @@ func deletePods(namespace string, flags ...string) []string {
 	return podNames
 }
 
+// [cc]: DEPRECATED
+//
 func startPortForwardingWithProtocol(namespace, resource, port, protocol string) (*gexec.Session, string) {
 	session := Start(nil, "kubectl", "port-forward", "--namespace="+namespace, resource, ":"+port)
 	Eventually(session.Out).Should(gbytes.Say("Forwarding"))
@@ -263,6 +432,8 @@ func startPortForwardingWithProtocol(namespace, resource, port, protocol string)
 	return session, protocol + "://" + address[0]
 }
 
+// [cc]: DEPRECATED
+//
 func startPortForwarding(namespace, resource, port string) (*gexec.Session, string) {
 	return startPortForwardingWithProtocol(namespace, resource, port, "http")
 }
