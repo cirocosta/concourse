@@ -9,7 +9,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Garden Config", func() {
+var _ = FDescribe("Garden Config", func() {
 
 	var (
 		garden              Endpoint

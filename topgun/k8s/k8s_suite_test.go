@@ -112,6 +112,10 @@ func setReleaseNameAndNamespace(description string) {
 //
 type pod struct {
 	Status struct {
+		Conditions []struct{
+			Type string `json:"type"`
+			Status string `json:"status"`
+		} `json:"conditions"`
 		ContainerStatuses []struct {
 			Name  string `json:"name"`
 			Ready bool   `json:"ready"`
@@ -216,7 +220,7 @@ func (f AddressEndpointFactory) NewPodEndpoint(namespace, pod, port string) Endp
 // podAddress TODO
 //
 func podAddress(namespace, pod string) (address string) {
-	pods := getPods(namespace, pod)
+	pods := getPods(namespace, "--field-selector=metadata.name=" + pod)
 	Expect(pods).To(HaveLen(1))
 
 	return pods[0].Status.Ip
@@ -330,16 +334,15 @@ func getPods(namespace string, flags ...string) []pod {
 }
 
 func isPodReady(p pod) bool {
-	total := len(p.Status.ContainerStatuses)
-	actual := 0
-
-	for _, containerStatus := range p.Status.ContainerStatuses {
-		if containerStatus.Ready {
-			actual++
+	for _, condition := range p.Status.Conditions {
+		if condition.Type != "ContainersReady" {
+			continue
 		}
+
+		return condition.Status == "True"
 	}
 
-	return total == actual
+	return false
 }
 
 func waitAllPodsInNamespaceToBeReady(namespace string) {
@@ -359,7 +362,7 @@ func waitAllPodsInNamespaceToBeReady(namespace string) {
 		}
 
 		return podsReady == len(expectedPods)
-	}, 5*time.Minute, 10*time.Second).Should(BeTrue(), "expected all pods to be running")
+	}, 10*time.Minute, 10*time.Second).Should(BeTrue(), "expected all pods to be running")
 }
 
 func deletePods(namespace string, flags ...string) []string {
