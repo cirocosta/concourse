@@ -18,9 +18,6 @@ var _ = Describe("Garden Config", func() {
 
 	BeforeEach(func() {
 		setReleaseNameAndNamespace("gc")
-		// [cc] maybe we can remove this
-		//
-		// Run(nil, "kubectl", "create", "namespace", namespace)
 	})
 
 	JustBeforeEach(func() {
@@ -64,8 +61,8 @@ var _ = Describe("Garden Config", func() {
   max-containers = 100`,
 			}
 
+			Run(nil, "kubectl", "create", "namespace", namespace)
 			Run(nil, "kubectl", configMapCreationArgs...)
-
 		})
 
 		It("returns the configured number of max containers", func() {
