@@ -282,6 +282,8 @@ func helmDeploy(releaseName, namespace, chartDir string, args ...string) *gexec.
 }
 
 func helmInstallArgs(args ...string) []string {
+	// [cc] TODO increase resource requests
+	//
 	helmArgs := []string{
 		"--set=web.livenessProbe.failureThreshold=3",
 		"--set=web.livenessProbe.initialDelaySeconds=3",
@@ -415,26 +417,6 @@ func deletePods(namespace string, flags ...string) []string {
 	}
 
 	return podNames
-}
-
-// [cc]: DEPRECATED
-//
-func startPortForwardingWithProtocol(namespace, resource, port, protocol string) (*gexec.Session, string) {
-	session := Start(nil, "kubectl", "port-forward", "--namespace="+namespace, resource, ":"+port)
-	Eventually(session.Out).Should(gbytes.Say("Forwarding"))
-
-	address := regexp.MustCompile(`127\.0\.0\.1:[0-9]+`).
-		FindStringSubmatch(string(session.Out.Contents()))
-
-	Expect(address).NotTo(BeEmpty())
-
-	return session, protocol + "://" + address[0]
-}
-
-// [cc]: DEPRECATED
-//
-func startPortForwarding(namespace, resource, port string) (*gexec.Session, string) {
-	return startPortForwardingWithProtocol(namespace, resource, port, "http")
 }
 
 func getRunningWorkers(workers []Worker) (running []Worker) {

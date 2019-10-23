@@ -58,9 +58,6 @@ var _ = Describe("Web HTTP or HTTPS(TLS) termination at web node", func() {
 
 			waitAllPodsInNamespaceToBeReady(namespace)
 
-			// By("Creating the web proxy")
-			// proxySession, atcEndpoint = startPortForwardingWithProtocol(namespace, "service/"+releaseName+"-web", proxyPort, proxyProtocol)
-
 			atc = endpointFactory.NewServiceEndpoint(
 				namespace,
 				releaseName+"-web",
