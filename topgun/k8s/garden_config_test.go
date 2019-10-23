@@ -10,18 +10,17 @@ import (
 )
 
 var _ = Describe("Garden Config", func() {
+
 	var (
 		garden              Endpoint
 		helmDeployTestFlags []string
 	)
 
-	type gardenCap struct {
-		MaxContainers int `json:"max_containers"`
-	}
-
 	BeforeEach(func() {
 		setReleaseNameAndNamespace("gc")
-		Run(nil, "kubectl", "create", "namespace", namespace)
+		// [cc] maybe we can remove this
+		//
+		// Run(nil, "kubectl", "create", "namespace", namespace)
 	})
 
 	JustBeforeEach(func() {
@@ -43,24 +42,6 @@ var _ = Describe("Garden Config", func() {
 		garden.Close()
 		cleanup(releaseName, namespace)
 	})
-
-	getMaxContainers := func() int {
-		req, err := http.NewRequest("GET", "http://"+garden.Address()+"/capacity", nil)
-
-		Expect(err).ToNot(HaveOccurred())
-
-		resp, err := http.DefaultClient.Do(req)
-		Expect(err).ToNot(HaveOccurred())
-
-		defer resp.Body.Close()
-
-		gardenCapObject := gardenCap{}
-
-		err = json.NewDecoder(resp.Body).Decode(&gardenCapObject)
-		Expect(err).ToNot(HaveOccurred())
-
-		return gardenCapObject.MaxContainers
-	}
 
 	Context("passing a config map location to the worker to be used by gdn", func() {
 		BeforeEach(func() {
@@ -88,7 +69,7 @@ var _ = Describe("Garden Config", func() {
 		})
 
 		It("returns the configured number of max containers", func() {
-			Expect(getMaxContainers()).To(Equal(100))
+			Expect(getMaxContainers(garden.Address())).To(Equal(100))
 		})
 	})
 
@@ -102,8 +83,29 @@ var _ = Describe("Garden Config", func() {
 		})
 
 		It("returns the configured number of max containers", func() {
-			Expect(getMaxContainers()).To(Equal(100))
+			Expect(getMaxContainers(garden.Address())).To(Equal(100))
 		})
 	})
 
 })
+
+type gardenCap struct {
+	MaxContainers int `json:"max_containers"`
+}
+
+func getMaxContainers(addr string) int {
+	req, err := http.NewRequest("GET", "http://"+addr+"/capacity", nil)
+	Expect(err).ToNot(HaveOccurred())
+
+	resp, err := http.DefaultClient.Do(req)
+	Expect(err).ToNot(HaveOccurred())
+
+	defer resp.Body.Close()
+
+	gardenCapObject := gardenCap{}
+
+	err = json.NewDecoder(resp.Body).Decode(&gardenCapObject)
+	Expect(err).ToNot(HaveOccurred())
+
+	return gardenCapObject.MaxContainers
+}
