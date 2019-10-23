@@ -28,7 +28,6 @@ var _ = Describe("external workers through separate deployments", func() {
 		tsaPort = "2222"
 		helmArgs := append(webDeployArgs,
 			"--set=worker.enabled=false",
-
 			"--set=web.tsa.bindPort="+tsaPort,
 		)
 		deployConcourseChart(releaseName+"-web", helmArgs...)
@@ -46,7 +45,7 @@ var _ = Describe("external workers through separate deployments", func() {
 		waitAllPodsInNamespaceToBeReady(namespace + "-web")
 
 		atc = endpointFactory.NewServiceEndpoint(
-			namespace,
+			namespace+"-web",
 			releaseName+"-web-web",
 			"8080",
 		)
