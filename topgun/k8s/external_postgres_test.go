@@ -7,10 +7,7 @@ import (
 )
 
 var _ = Describe("External PostgreSQL", func() {
-	var (
-		pgReleaseName string
-		atc           Endpoint
-	)
+	var pgReleaseName string
 
 	BeforeEach(func() {
 		setReleaseNameAndNamespace("ep")
@@ -40,18 +37,21 @@ var _ = Describe("External PostgreSQL", func() {
 		)
 
 		waitAllPodsInNamespaceToBeReady(namespace)
-
-		atc = endpointFactory.NewServiceEndpoint(namespace, releaseName+"-web", "8080")
 	})
 
 	AfterEach(func() {
 		helmDestroy(pgReleaseName)
-
-		atc.Close()
-		cleanup(releaseName, namespace, nil) // TODO
+		cleanup(releaseName, namespace)
 	})
 
-	FIt("can have pipelines set", func() {
+	It("can have pipelines set", func() {
+		atc := endpointFactory.NewServiceEndpoint(
+			namespace,
+			releaseName+"-web",
+			"8080",
+		)
+		defer atc.Close()
+
 		By("Logging in")
 		fly.Login("test", "test", "http://"+atc.Address())
 

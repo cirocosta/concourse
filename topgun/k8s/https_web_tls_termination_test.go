@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/onsi/gomega/gbytes"
-	"github.com/onsi/gomega/gexec"
 	"github.com/square/certstrap/pkix"
 
 	. "github.com/onsi/ginkgo"
@@ -43,13 +42,13 @@ var _ = Describe("Web HTTP or HTTPS(TLS) termination at web node", func() {
 		os.Remove(caCertFile.Name())
 	})
 
-	Context("When configured correctly", func() {
+	Context("when configured correctly", func() {
+
 		var (
-			proxySession  *gexec.Session
-			atcEndpoint   string
-			chartConfig   []string
-			proxyPort     string
-			proxyProtocol string
+			atc Endpoint
+
+			chartConfig []string
+			proxyPort   string
 		)
 
 		JustBeforeEach(func() {
@@ -59,15 +58,22 @@ var _ = Describe("Web HTTP or HTTPS(TLS) termination at web node", func() {
 
 			waitAllPodsInNamespaceToBeReady(namespace)
 
-			By("Creating the web proxy")
-			proxySession, atcEndpoint = startPortForwardingWithProtocol(namespace, "service/"+releaseName+"-web", proxyPort, proxyProtocol)
+			// By("Creating the web proxy")
+			// proxySession, atcEndpoint = startPortForwardingWithProtocol(namespace, "service/"+releaseName+"-web", proxyPort, proxyProtocol)
+
+			atc = endpointFactory.NewServiceEndpoint(
+				namespace,
+				releaseName+"-web",
+				proxyPort,
+			)
 		})
 
 		AfterEach(func() {
-			cleanup(releaseName, namespace, proxySession)
+			atc.Close()
+			cleanup(releaseName, namespace)
 		})
 
-		Context("configure helm chart for tls termination at web", func() {
+		Context("with tls termination at web", func() {
 
 			BeforeEach(func() {
 				chartConfig = generateChartConfig(
@@ -76,38 +82,29 @@ var _ = Describe("Web HTTP or HTTPS(TLS) termination at web node", func() {
 					"--set=secrets.webTlsCert="+string(serverCertBytes),
 					"--set=secrets.webTlsKey="+string(serverKeyBytes),
 				)
+
 				proxyPort = "443"
-				proxyProtocol = "https"
 			})
 
 			It("fly login succeeds when using the correct CA and host", func() {
-				By("Logging in")
-				sess := fly.Start("login", "-u", "test", "-p", "test", "--ca-cert", caCertFile.Name(), "-c", atcEndpoint)
-				<-sess.Exited
-				Expect(sess.ExitCode()).To(Equal(0))
+				fly.Run("login", "-u", "test", "-p", "test",
+					"--ca-cert", caCertFile.Name(),
+					"-c", "https://"+atc.Address(),
+				)
 			})
 
 			It("fly login fails when NOT using the correct CA", func() {
-				By("Logging in")
-				sess := fly.Start("login", "-u", "test", "-p", "test", "--ca-cert", "k8s/certs/wrong-ca.crt", "-c", atcEndpoint)
+				sess := fly.Start("login", "-u", "test", "-p", "test",
+					"--ca-cert", "k8s/certs/wrong-ca.crt",
+					"-c", "https://"+atc.Address(),
+				)
 				<-sess.Exited
+
 				Expect(sess.ExitCode()).ToNot(Equal(0))
 				Expect(sess.Err).To(gbytes.Say(`x509: certificate signed by unknown authority`))
 			})
 		})
 
-		Context("DON'T configure tls termination at web in helm chart", func() {
-			BeforeEach(func() {
-				chartConfig = generateChartConfig("--set=concourse.web.externalUrl=http://test.com",
-					"--set=concourse.web.tls.enabled=false")
-				proxyPort = "8080"
-				proxyProtocol = "http"
-			})
-			It("fly login succeeds when connecting to web over http", func() {
-				By("Logging in")
-				fly.Login("test", "test", atcEndpoint)
-			})
-		})
 	})
 
 	Context("When NOT configured correctly", func() {
@@ -116,22 +113,26 @@ var _ = Describe("Web HTTP or HTTPS(TLS) termination at web node", func() {
 			setReleaseNameAndNamespace("wtt")
 		})
 
-		It("helm deploy fails if tls is enabled but externalURL is NOT set", func() {
+		It("fails if tls is enabled but externalURL is NOT set", func() {
 			expectedErr := "Must specify HTTPS external URL when concourse.web.tls.enabled is true"
+
 			chartConfig := generateChartConfig(
 				"--set=concourse.web.tls.enabled=true",
 				"--set=secrets.webTlsCert="+string(serverCertBytes),
 				"--set=secrets.webTlsKey="+string(serverKeyBytes),
 			)
+
 			deployFailingConcourseChart(releaseName, expectedErr,
 				chartConfig...,
 			)
 		})
 
-		It("helm deploy fails when tls is enabled but ssl cert and ssl key are NOT set", func() {
+		It("fails when tls is enabled but ssl cert and ssl key are NOT set", func() {
 			expectedErr := "secrets.webTlsCert is required because secrets.create is true and concourse.web.tls.enabled is true"
+
 			chartConfig := generateChartConfig("--set=concourse.web.externalUrl=https://test.com",
 				"--set=concourse.web.tls.enabled=true")
+
 			deployFailingConcourseChart(releaseName, expectedErr,
 				chartConfig...,
 			)

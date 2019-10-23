@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/onsi/gomega/gexec"
-
 	. "github.com/concourse/concourse/topgun"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -13,8 +11,7 @@ import (
 
 var _ = Describe("Garden Config", func() {
 	var (
-		proxySession        *gexec.Session
-		gardenEndpoint      string
+		garden              Endpoint
 		helmDeployTestFlags []string
 	)
 
@@ -35,16 +32,20 @@ var _ = Describe("Garden Config", func() {
 		pods := getPods(namespace, "--selector=app="+releaseName+"-worker")
 		Expect(pods).To(HaveLen(1))
 
-		By("Creating the worker-garden proxy")
-		proxySession, gardenEndpoint = startPortForwarding(namespace, "pod/"+pods[0].Metadata.Name, "7777")
+		garden = endpointFactory.NewPodEndpoint(
+			namespace,
+			pods[0].Metadata.Name,
+			"7777",
+		)
 	})
 
 	AfterEach(func() {
-		cleanup(releaseName, namespace, proxySession)
+		garden.Close()
+		cleanup(releaseName, namespace)
 	})
 
 	getMaxContainers := func() int {
-		req, err := http.NewRequest("GET", gardenEndpoint+"/capacity", nil)
+		req, err := http.NewRequest("GET", "http://"+garden.Address()+"/capacity", nil)
 
 		Expect(err).ToNot(HaveOccurred())
 

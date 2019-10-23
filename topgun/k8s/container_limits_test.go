@@ -32,25 +32,30 @@ var _ = Describe("Container Limits", func() {
 	})
 
 	AfterEach(func() {
-		cleanup(releaseName, namespace, nil)
+		cleanup(releaseName, namespace)
 	})
 
 })
 
-func waitAndLogin() {
+// TODO waitDeployAndLogin?
+//
+func waitAndLogin(namespace, service string) Endpoint {
 	waitAllPodsInNamespaceToBeReady(namespace)
 
-	By("Creating the web proxy")
-	_, atcEndpoint := startPortForwarding(namespace, "service/"+releaseName+"-web", "8080")
+	atc := endpointFactory.NewServiceEndpoint(
+		namespace,
+		service,
+		"8080",
+	)
 
-	By("Logging in")
-	fly.Login("test", "test", atcEndpoint)
+	fly.Login("test", "test", "http://"+atc.Address())
 
 	Eventually(func() []Worker {
 		return getRunningWorkers(fly.GetWorkers())
 	}, 2*time.Minute, 10*time.Second).
 		ShouldNot(HaveLen(0))
 
+	return atc
 }
 
 func deployWithSelectors(selectorFlags ...string) {
@@ -66,9 +71,13 @@ func containerLimitsWork(selectorFlags ...string) {
 	Context("container limits work", func() {
 		It("returns the configure default container limit", func() {
 			deployWithSelectors(selectorFlags...)
-			waitAndLogin()
+
+			atc := waitAndLogin(namespace, releaseName+"-web")
+			defer atc.Close()
+
 			buildSession := fly.Start("execute", "-c", "tasks/tiny.yml")
 			<-buildSession.Exited
+
 			Expect(buildSession.ExitCode()).To(Equal(0))
 
 			hijackSession := fly.Start(
@@ -89,12 +98,16 @@ func containerLimitsFail(selectorFlags ...string) {
 	Context("container limits fail", func() {
 		It("fails to set the memory limit", func() {
 			deployWithSelectors(selectorFlags...)
-			waitAndLogin()
+
+			atc := waitAndLogin(namespace, releaseName+"-web")
+			defer atc.Close()
+
 			buildSession := fly.Start("execute", "-c", "tasks/tiny.yml")
 			<-buildSession.Exited
 			Expect(buildSession.ExitCode()).To(Equal(2))
-
-			Expect(buildSession).To(gbytes.Say("failed to write 1073741824 to memory.memsw.limit_in_bytes"))
+			Expect(buildSession).To(gbytes.Say(
+				"failed to write 1073741824 to memory.memsw.limit_in_bytes",
+			))
 			Expect(buildSession).To(gbytes.Say("permission denied"))
 		})
 	})
