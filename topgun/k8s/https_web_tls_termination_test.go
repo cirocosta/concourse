@@ -14,6 +14,7 @@ import (
 )
 
 var _ = Describe("Web HTTP or HTTPS(TLS) termination at web node", func() {
+
 	var (
 		serverCertBytes []byte
 		serverKeyBytes  []byte
@@ -23,7 +24,9 @@ var _ = Describe("Web HTTP or HTTPS(TLS) termination at web node", func() {
 	BeforeEach(func() {
 		var err error
 
-		CACert, serverKey, serverCert := generateKeyPairWithCA()
+		setReleaseNameAndNamespace("wtt")
+
+		CACert, serverKey, serverCert := generateKeyPairWithCA(namespace, releaseName + "-web")
 		CACertBytes, err := CACert.Export()
 		Expect(err).NotTo(HaveOccurred())
 
@@ -52,9 +55,7 @@ var _ = Describe("Web HTTP or HTTPS(TLS) termination at web node", func() {
 		)
 
 		JustBeforeEach(func() {
-			setReleaseNameAndNamespace("wtt")
-			deployConcourseChart(releaseName,
-				chartConfig...)
+			deployConcourseChart(releaseName, chartConfig...)
 
 			waitAllPodsInNamespaceToBeReady(namespace)
 
@@ -140,12 +141,12 @@ var _ = Describe("Web HTTP or HTTPS(TLS) termination at web node", func() {
 
 func generateChartConfig(args ...string) []string {
 	return append(args,
-		"--set=worker.replicas=1",
+		"--set=worker.enabled=false",
 		"--set=concourse.worker.baggageclaim.driver=detect",
 		"--set=concourse.web.tls.bindPort=443",
 	)
 }
-func generateKeyPairWithCA() (*pkix.Certificate, *pkix.Key, *pkix.Certificate) {
+func generateKeyPairWithCA(namespace, service string) (*pkix.Certificate, *pkix.Key, *pkix.Certificate) {
 	CAKey, err := pkix.CreateRSAKey(1024)
 	Expect(err).NotTo(HaveOccurred())
 
@@ -155,11 +156,14 @@ func generateKeyPairWithCA() (*pkix.Certificate, *pkix.Key, *pkix.Certificate) {
 	serverKey, err := pkix.CreateRSAKey(1024)
 	Expect(err).NotTo(HaveOccurred())
 
-	certificateSigningRequest, err := pkix.CreateCertificateSigningRequest(serverKey, "", []net.IP{net.IPv4(127, 0, 0, 1)},
-		nil, "Pivotal", "", "", "", "127.0.0.1")
+	certificateSigningRequest, err := pkix.CreateCertificateSigningRequest(
+		serverKey, "", []net.IP{net.IPv4(127, 0, 0, 1)},
+		[]string{serviceAddress(namespace, service)},
+		"Pivotal", "", "", "", "127.0.0.1")
 	Expect(err).NotTo(HaveOccurred())
 
-	serverCert, err := pkix.CreateCertificateHost(CACert, CAKey, certificateSigningRequest, time.Now().Add(time.Hour))
+	serverCert, err := pkix.CreateCertificateHost(CACert, CAKey,
+		certificateSigningRequest, time.Now().Add(time.Hour))
 	Expect(err).NotTo(HaveOccurred())
 
 	return CACert, serverKey, serverCert

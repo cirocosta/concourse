@@ -107,20 +107,6 @@ func setReleaseNameAndNamespace(description string) {
 	namespace = releaseName
 }
 
-// service corresponds to the Json object that represents a Kuberneted service
-// from the apiserver perspective.
-//
-type service struct {
-	Metadata struct {
-		Name      string `json:"name"`
-		Namespace string `json:"namespace"`
-	} `json:"metadata"`
-	Spec struct {
-		ClusterIP string `json:"clusterIP"`
-		Type      string `json:"type"`
-	} `json:"spec"`
-}
-
 // pod corresponds to the Json object that represents a Kuberneted pod from the
 // apiserver perspective.
 //
@@ -240,8 +226,7 @@ func podAddress(namespace, pod string) (address string) {
 // namespace.
 //
 func serviceAddress(namespace, serviceName string) (address string) {
-	svc := getService(namespace, serviceName)
-	return svc.Spec.ClusterIP
+	return serviceName + "." + namespace
 }
 
 // portForward establishes a port-forwarding session against a given kubernetes
@@ -321,25 +306,6 @@ func helmDestroy(releaseName string) {
 	}
 
 	Wait(Start(nil, "helm", helmArgs...))
-}
-
-func getService(namespace, name string) service {
-	var (
-		args = []string{
-			"get", "service", name,
-			"--namespace=" + namespace,
-			"--output=json",
-		}
-		svc = service{}
-	)
-
-	session := Start(nil, "kubectl", args...)
-	Wait(session)
-
-	err := json.Unmarshal(session.Out.Contents(), &svc)
-	Expect(err).ToNot(HaveOccurred())
-
-	return svc
 }
 
 func getPods(namespace string, flags ...string) []pod {
