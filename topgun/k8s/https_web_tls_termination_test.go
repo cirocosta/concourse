@@ -26,7 +26,7 @@ var _ = Describe("Web HTTP or HTTPS(TLS) termination at web node", func() {
 
 		setReleaseNameAndNamespace("wtt")
 
-		CACert, serverKey, serverCert := generateKeyPairWithCA(namespace, releaseName + "-web")
+		CACert, serverKey, serverCert := generateKeyPairWithCA(namespace, releaseName+"-web")
 		CACertBytes, err := CACert.Export()
 		Expect(err).NotTo(HaveOccurred())
 

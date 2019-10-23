@@ -254,7 +254,6 @@ func helmDeploy(releaseName, namespace, chartDir string, args ...string) *gexec.
 		"upgrade",
 		"--install",
 		"--force",
-		"--wait",
 		"--namespace", namespace,
 	}
 
@@ -267,9 +266,10 @@ func helmDeploy(releaseName, namespace, chartDir string, args ...string) *gexec.
 }
 
 func helmInstallArgs(args ...string) []string {
-	// [cc] TODO increase resource requests
-	//
 	helmArgs := []string{
+		"--set=web.resources.requests.cpu=500m",
+		"--set=worker.resources.requests.cpu=500m",
+		"--set=concourse.web.kubernetes.keepNamespaces=false",
 		"--set=concourse.web.kubernetes.keepNamespaces=false",
 		"--set=postgresql.persistence.enabled=false",
 		"--set=image=" + Environment.ConcourseImageName}
