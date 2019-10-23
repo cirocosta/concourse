@@ -130,9 +130,7 @@ type pod struct {
 			Name  string `json:"name"`
 			Ready bool   `json:"ready"`
 		} `json:"containerStatuses"`
-		Phase  string `json:"phase"`
-		HostIp string `json:"hostIP"`
-		Ip     string `json:"podIP"`
+		Ip string `json:"podIP"`
 	} `json:"status"`
 	Metadata struct {
 		Name string `json:"name"`
@@ -330,6 +328,7 @@ func helmDestroy(releaseName string) {
 func getService(namespace, name string) service {
 	var (
 		args = []string{
+			"get", "service", name,
 			"--namespace=" + namespace,
 			"--output=json",
 		}
