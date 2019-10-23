@@ -285,10 +285,6 @@ func helmInstallArgs(args ...string) []string {
 	// [cc] TODO increase resource requests
 	//
 	helmArgs := []string{
-		"--set=web.livenessProbe.failureThreshold=3",
-		"--set=web.livenessProbe.initialDelaySeconds=3",
-		"--set=web.livenessProbe.periodSeconds=3",
-		"--set=web.livenessProbe.timeoutSeconds=3",
 		"--set=concourse.web.kubernetes.keepNamespaces=false",
 		"--set=postgresql.persistence.enabled=false",
 		"--set=image=" + Environment.ConcourseImageName}
