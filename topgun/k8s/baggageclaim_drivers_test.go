@@ -71,7 +71,6 @@ func baggageclaimFails(driver string, selectorFlags ...string) {
 				return workerLogsSession.Out.Contents()
 
 			}).Should(ContainSubstring("failed-to-set-up-driver"))
-
 		})
 	})
 }

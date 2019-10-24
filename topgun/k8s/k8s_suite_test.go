@@ -271,11 +271,13 @@ func helmDeploy(releaseName, namespace, chartDir string, args ...string) *gexec.
 
 func helmInstallArgs(args ...string) []string {
 	helmArgs := []string{
-		"--set=web.resources.requests.cpu=500m",
-		"--set=worker.resources.requests.cpu=500m",
 		"--set=concourse.web.kubernetes.keepNamespaces=false",
-		"--set=concourse.web.kubernetes.keepNamespaces=false",
+		"--set=concourse.worker.bindIp=0.0.0.0",
 		"--set=postgresql.persistence.enabled=false",
+		"--set=web.resources.requests.cpu=500m",
+		"--set=worker.readinessProbe.httpGet.path=/",
+		"--set=worker.readinessProbe.httpGet.port=worker-hc",
+		"--set=worker.resources.requests.cpu=500m",
 		"--set=image=" + Environment.ConcourseImageName}
 
 	if Environment.ConcourseImageTag != "" {
@@ -362,7 +364,7 @@ func waitAllPodsInNamespaceToBeReady(namespace string) {
 		}
 
 		return podsReady == len(expectedPods)
-	}, 10*time.Minute, 10*time.Second).Should(BeTrue(), "expected all pods to be running")
+	}, 15*time.Minute, 10*time.Second).Should(BeTrue(), "expected all pods to be running")
 }
 
 func deletePods(namespace string, flags ...string) []string {
