@@ -7,6 +7,9 @@ import (
 
 	"code.cloudfoundry.org/garden"
 	"github.com/concourse/concourse/worker/backend/libcontainerd"
+	bespec "github.com/concourse/concourse/worker/backend/spec"
+	"github.com/containerd/containerd"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
 var _ garden.Backend = (*Backend)(nil)
@@ -33,7 +36,11 @@ func (b *Backend) Start() (err error) {
 	return
 }
 
-func (b *Backend) Stop() {}
+// Stop closes the client connection with `containerd`
+//
+func (b *Backend) Stop() {
+	_ = b.client.Stop()
+}
 
 func (b *Backend) GraceTime(container garden.Container) (duration time.Duration) {
 	return
@@ -65,7 +72,33 @@ func (b *Backend) Capacity() (capacity garden.Capacity, err error) { return }
 // * When the handle, if specified, is already taken.
 // * When one of the bind_mount paths does not exist.
 // * When resource allocations fail (subnet, user ID, etc).
-func (b *Backend) Create(spec garden.ContainerSpec) (container garden.Container, err error) {
+func (b *Backend) Create(gdnSpec garden.ContainerSpec) (container garden.Container, err error) {
+	var (
+		oci *specs.Spec
+		ctx = context.Background()
+	)
+
+	if gdnSpec.Handle == "" {
+		err = fmt.Errorf("handle must be specified")
+		return
+	}
+
+	oci, err = bespec.OciSpec(gdnSpec)
+	if err != nil {
+		err = fmt.Errorf("failed to convert garden spec to oci spec: %w", err)
+		return
+	}
+
+	_, err = b.client.NewContainer(
+		ctx,
+		gdnSpec.Handle,
+		containerd.WithSpec(oci),
+	)
+
+	// todo creates task (??)
+
+	// todo sets up networking
+
 	return
 }
 

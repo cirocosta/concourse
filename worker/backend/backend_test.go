@@ -2,8 +2,10 @@ package backend_test
 
 import (
 	"errors"
+	"path/filepath"
 	"testing"
 
+	"code.cloudfoundry.org/garden"
 	"github.com/concourse/concourse/worker/backend"
 	"github.com/concourse/concourse/worker/backend/libcontainerd/libcontainerdfakes"
 	"github.com/stretchr/testify/require"
@@ -52,6 +54,33 @@ func (s *BackendSuite) TestPing() {
 			s.Error(err)
 		})
 	}
+}
+
+func (s *BackendSuite) TestCreateBehavior() {
+	// [cc] verify that it validates?
+
+	rootfs, err := filepath.Abs("testdata/rootfs")
+	s.NoError(err)
+
+	spec := garden.ContainerSpec{
+		Handle:     "handle",
+		RootFSPath: "raw://" + rootfs,
+	}
+
+	_, err = s.backend.Create(spec)
+	s.NoError(err)
+
+	s.Equal(1, s.client.NewContainerCallCount())
+}
+
+func (s *BackendSuite) TestStart() {
+	s.backend.Start()
+	s.Equal(1, s.client.InitCallCount())
+}
+
+func (s *BackendSuite) TestStop() {
+	s.backend.Stop()
+	s.Equal(1, s.client.StopCallCount())
 }
 
 func TestSuite(t *testing.T) {
