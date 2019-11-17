@@ -8,19 +8,22 @@ import (
 	"code.cloudfoundry.org/garden"
 	"github.com/concourse/concourse/worker/backend/libcontainerd"
 	bespec "github.com/concourse/concourse/worker/backend/spec"
-	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/cio"
+	"github.com/containerd/containerd/namespaces"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
 var _ garden.Backend = (*Backend)(nil)
 
 type Backend struct {
-	client libcontainerd.Client
+	client    libcontainerd.Client
+	namespace string
 }
 
-func New(client libcontainerd.Client) Backend {
+func New(client libcontainerd.Client, namespace string) Backend {
 	return Backend{
-		client: client,
+		namespace: namespace,
+		client:    client,
 	}
 }
 
@@ -48,13 +51,6 @@ func (b *Backend) GraceTime(container garden.Container) (duration time.Duration)
 
 // Pings the garden server in order to check connectivity.
 //
-// The server may, optionally, respond with specific errors indicating health
-// issues.
-//
-// Errors:
-// * garden.UnrecoverableError indicates that the garden server has entered an error state from which it cannot recover
-//
-// TODO - we might use the `version` service here as a proxy to "ping"
 func (b *Backend) Ping() (err error) {
 	err = b.client.Version(context.Background())
 	return
@@ -68,20 +64,11 @@ func (b *Backend) Capacity() (capacity garden.Capacity, err error) { return }
 
 // Create creates a new container.
 //
-// Errors:
-// * When the handle, if specified, is already taken.
-// * When one of the bind_mount paths does not exist.
-// * When resource allocations fail (subnet, user ID, etc).
 func (b *Backend) Create(gdnSpec garden.ContainerSpec) (container garden.Container, err error) {
 	var (
 		oci *specs.Spec
-		ctx = context.Background()
+		ctx = namespaces.WithNamespace(context.Background(), b.namespace)
 	)
-
-	if gdnSpec.Handle == "" {
-		err = fmt.Errorf("handle must be specified")
-		return
-	}
 
 	oci, err = bespec.OciSpec(gdnSpec)
 	if err != nil {
@@ -89,15 +76,19 @@ func (b *Backend) Create(gdnSpec garden.ContainerSpec) (container garden.Contain
 		return
 	}
 
-	_, err = b.client.NewContainer(
-		ctx,
-		gdnSpec.Handle,
-		containerd.WithSpec(oci),
+	cont, err := b.client.NewContainer(ctx,
+		gdnSpec.Handle, map[string]string(gdnSpec.Properties), oci,
 	)
+	if err != nil {
+		err = fmt.Errorf("failed to create a container in containerd: %w", err)
+		return
+	}
 
-	// todo creates task (??)
-
-	// todo sets up networking
+	_, err = cont.NewTask(ctx, cio.NullIO)
+	if err != nil {
+		err = fmt.Errorf("failed to create a task in container: %w", err)
+		return
+	}
 
 	return
 }
@@ -121,6 +112,28 @@ func (b *Backend) Destroy(handle string) (err error) { return }
 // Errors:
 // * None.
 func (b *Backend) Containers(properties garden.Properties) (containers []garden.Container, err error) {
+	var (
+		ctx     = namespaces.WithNamespace(context.Background(), b.namespace)
+		filters = make([]string, len(properties))
+		idx     = 0
+	)
+
+	for k, v := range properties {
+		filters[idx] = k + "=" + v
+		idx++
+	}
+
+	res, err := b.client.Containers(ctx, filters...)
+	if err != nil {
+		return
+	}
+
+	containers = make([]garden.Container, len(res))
+	for idx := range res {
+		gContainer := NewContainer()
+		containers[idx] = &gContainer
+	}
+
 	return
 }
 

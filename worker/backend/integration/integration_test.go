@@ -2,7 +2,9 @@ package integration_test
 
 import (
 	"path/filepath"
+	"strconv"
 	"testing"
+	"time"
 
 	"code.cloudfoundry.org/garden"
 	"github.com/concourse/concourse/worker/backend"
@@ -21,8 +23,11 @@ type BackendSuite struct {
 }
 
 func (s *BackendSuite) SetupTest() {
+	namespace := "test" + strconv.FormatInt(time.Now().UnixNano(), 10)
+
 	s.backend = backend.New(
 		libcontainerd.New("/run/containerd/containerd.sock"),
+		namespace,
 	)
 
 	s.NoError(s.backend.Start())
@@ -44,6 +49,7 @@ func (s *BackendSuite) TestContainerCreation() {
 	_, err = s.backend.Create(garden.ContainerSpec{
 		Handle:     handle,
 		RootFSPath: "raw://" + rootfs,
+		Privileged: true,
 	})
 	s.NoError(err)
 

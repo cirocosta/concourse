@@ -170,40 +170,6 @@ func (s *Suite) TestOciSpecBindMounts() {
 	}
 }
 
-// func (s *Suite) TestLinuxContainerizationSpec() {
-// 	for _, tc := range []struct {
-// 		desc     string
-// 		gdn      garden.ContainerSpec
-// 		expected *specs.Spec
-// 	}{
-// 		{
-// 			desc: "privileged",
-// 			gdn: garden.ContainerSpec{
-// 				Handle:     "handle",
-// 				RootFSPath: "raw:///rootfs",
-// 			},
-// 			expected: &specs.Spec{
-// 				Hostname: "handle",
-// 				Linux: &specs.Linux{
-// 					Namespaces: spec.PrivilegedContainerNamespaces,
-// 					Resources:  &specs.LinuxResources{Devices: spec.AnyContainerDevices},
-// 				},
-// 				Process: &specs.Process{
-// 					Capabilities: &spec.PrivilegedContainerCapabilities,
-// 				},
-// 				Root:    &specs.Root{Path: "/rootfs"},
-// 				Version: specs.Version,
-// 			},
-// 		},
-// 	} {
-// 		s.T().Run(tc.desc, func(t *testing.T) {
-// 			actual, err := spec.OciSpec(tc.gdn)
-// 			s.NoError(err)
-// 			s.Equal(tc.expected, actual)
-// 		})
-// 	}
-// }
-
 func (s *Suite) TestOciNamespaces() {
 	for _, tc := range []struct {
 		desc       string
@@ -251,12 +217,27 @@ func (s *Suite) TestOciCapabilities() {
 }
 
 func (s *Suite) TestContainerSpec() {
+	var minimalContainerSpec = garden.ContainerSpec{
+		Handle: "handle", RootFSPath: "raw:///rootfs",
+	}
+
 	for _, tc := range []struct {
 		desc  string
 		gdn   garden.ContainerSpec
 		check func(*specs.Spec)
 	}{
+		{
+			desc: "defaults",
+			gdn:  minimalContainerSpec,
+			check: func(oci *specs.Spec) {
+				s.Equal("/", oci.Process.Cwd)
+				s.Equal([]string{"/tmp/gdn-init"}, oci.Process.Args)
+				s.Equal(oci.Mounts, spec.AnyContainerMounts)
 
+				s.Equal(minimalContainerSpec.Handle, oci.Hostname)
+				s.Equal(spec.AnyContainerDevices, oci.Linux.Resources.Devices)
+			},
+		},
 		{
 			desc: "env",
 			gdn: garden.ContainerSpec{
@@ -287,36 +268,20 @@ func (s *Suite) TestContainerSpec() {
 				},
 			},
 			check: func(oci *specs.Spec) {
-				s.Equal([]specs.Mount{
-					{
-						Source:      "/a",
-						Destination: "/b",
-						Type:        "bind",
-						Options:     []string{"bind", "ro"},
-					},
-					{
-						Source:      "/a",
-						Destination: "/b",
-						Type:        "bind",
-						Options:     []string{"bind", "rw"},
-					},
-				}, oci.Mounts)
+				s.Contains(oci.Mounts, specs.Mount{
+					Source:      "/a",
+					Destination: "/b",
+					Type:        "bind",
+					Options:     []string{"bind", "ro"},
+				})
+				s.Contains(oci.Mounts, specs.Mount{
+					Source:      "/a",
+					Destination: "/b",
+					Type:        "bind",
+					Options:     []string{"bind", "rw"},
+				})
 			},
 		},
-		// {
-		// desc: "limits",
-		// gdn:  garden.ContainerSpec{},
-		// check: func(oci *specs.Spec) {
-		// 	s.Equal([]string{"foo=bar"}, oci.Process.Env)
-		// },
-		// },
-		// {
-		// 	desc: "properties",
-		// 	gdn:  garden.ContainerSpec{},
-		// 	check: func(oci *specs.Spec) {
-		// 		s.Equal([]string{"foo=bar"}, oci.Process.Env)
-		// 	},
-		// },
 	} {
 		s.T().Run(tc.desc, func(t *testing.T) {
 			actual, err := spec.OciSpec(tc.gdn)

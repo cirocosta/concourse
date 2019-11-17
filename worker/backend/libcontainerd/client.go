@@ -5,10 +5,11 @@ import (
 	"fmt"
 
 	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/namespaces"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . Client
+//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 github.com/containerd/containerd.Container
 
 // Client represents the minimum interface used to communicate with containerd
 // to manage containers.
@@ -33,24 +34,35 @@ type Client interface {
 	// NewContainer creates a container in containerd.
 	//
 	NewContainer(
-		ctx context.Context, id string, opts ...containerd.NewContainerOpts,
+		ctx context.Context,
+		id string,
+		labels map[string]string,
+		oci *specs.Spec,
 	) (
 		container containerd.Container, err error,
+	)
+
+	// Containers lists containers available in containerd matching a given
+	// labelset.
+	//
+	Containers(
+		ctx context.Context,
+		labels ...string,
+	) (
+		containers []containerd.Container, err error,
 	)
 }
 
 type client struct {
-	addr      string
-	namespace string
+	addr string
 
 	containerd *containerd.Client
 }
 
-func New(addr, namespace string) *client {
-	return &client{
-		addr:      addr,
-		namespace: namespace,
-	}
+var _ Client = (*client)(nil)
+
+func New(addr string) *client {
+	return &client{addr: addr}
 }
 
 func (c *client) Init() (err error) {
@@ -73,15 +85,22 @@ func (c *client) Stop() (err error) {
 }
 
 func (c *client) NewContainer(
-	ctx context.Context, id string, opts ...containerd.NewContainerOpts,
+	ctx context.Context, id string, labels map[string]string, oci *specs.Spec,
 ) (
 	containerd.Container, error,
 ) {
-	ctx = namespaces.WithNamespace(ctx, c.namespace)
+	return c.containerd.NewContainer(ctx, id,
+		containerd.WithSpec(oci),
+		containerd.WithContainerLabels(labels),
+	)
+}
 
-	// create a snapshot of that rootfs
-
-	return c.containerd.NewContainer(ctx, id, opts...)
+func (c *client) Containers(
+	ctx context.Context, labels ...string,
+) (
+	[]containerd.Container, error,
+) {
+	return c.containerd.Containers(ctx, labels...)
 }
 
 func (c *client) Version(ctx context.Context) (err error) {

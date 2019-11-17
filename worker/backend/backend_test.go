@@ -2,12 +2,12 @@ package backend_test
 
 import (
 	"errors"
-	"path/filepath"
 	"testing"
 
 	"code.cloudfoundry.org/garden"
 	"github.com/concourse/concourse/worker/backend"
 	"github.com/concourse/concourse/worker/backend/libcontainerd/libcontainerdfakes"
+	"github.com/containerd/containerd"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -20,9 +20,11 @@ type BackendSuite struct {
 	client  *libcontainerdfakes.FakeClient
 }
 
+const testNamespace = "test-namespace"
+
 func (s *BackendSuite) SetupTest() {
 	s.client = new(libcontainerdfakes.FakeClient)
-	s.backend = backend.New(s.client)
+	s.backend = backend.New(s.client, testNamespace)
 }
 
 func (s *BackendSuite) TestPing() {
@@ -56,21 +58,69 @@ func (s *BackendSuite) TestPing() {
 	}
 }
 
-func (s *BackendSuite) TestCreateBehavior() {
-	// [cc] verify that it validates?
-
-	rootfs, err := filepath.Abs("testdata/rootfs")
-	s.NoError(err)
-
-	spec := garden.ContainerSpec{
-		Handle:     "handle",
-		RootFSPath: "raw://" + rootfs,
+var (
+	invalidGdnSpec      = garden.ContainerSpec{}
+	minimumValidGdnSpec = garden.ContainerSpec{
+		Handle: "handle", RootFSPath: "raw:///rootfs",
 	}
+)
 
-	_, err = s.backend.Create(spec)
-	s.NoError(err)
+func (s *BackendSuite) TestCreateWithInvalidSpec() {
+	_, err := s.backend.Create(invalidGdnSpec)
+
+	s.Error(err)
+	s.Equal(0, s.client.NewContainerCallCount())
+}
+
+func (s *BackendSuite) TestCreateWithNewContainerFailure() {
+	s.client.NewContainerReturns(nil, errors.New("err"))
+
+	_, err := s.backend.Create(minimumValidGdnSpec)
+	s.Error(err)
 
 	s.Equal(1, s.client.NewContainerCallCount())
+}
+
+func (s *BackendSuite) TestCreateContainerNewTaskFailure() {
+	fakeContainer := new(libcontainerdfakes.FakeContainer)
+	fakeContainer.NewTaskReturns(nil, errors.New("err"))
+
+	s.client.NewContainerReturns(fakeContainer, nil)
+
+	_, err := s.backend.Create(minimumValidGdnSpec)
+	s.Error(err)
+
+	s.Equal(1, fakeContainer.NewTaskCallCount())
+}
+
+func (s *BackendSuite) TestContainersWithContainerdFailure() {
+	s.client.ContainersReturns(nil, errors.New("err"))
+
+	_, err := s.backend.Containers(nil)
+	s.Error(err)
+	s.Equal(1, s.client.ContainersCallCount())
+}
+
+func (s *BackendSuite) TestContainersWithProperties() {
+	_, _ = s.backend.Containers(map[string]string{"foo": "bar", "caz": "zaz"})
+	s.Equal(1, s.client.ContainersCallCount())
+
+	_, labelSet := s.client.ContainersArgsForCall(0)
+	s.ElementsMatch([]string{"foo=bar", "caz=zaz"}, labelSet)
+}
+
+func (s *BackendSuite) TestContainersConversion() {
+	fakeContainer1 := new(libcontainerdfakes.FakeContainer)
+	fakeContainer2 := new(libcontainerdfakes.FakeContainer)
+
+	s.client.ContainersReturns([]containerd.Container{
+		fakeContainer1, fakeContainer2,
+	}, nil)
+
+	containers, err := s.backend.Containers(nil)
+	s.NoError(err)
+	s.Equal(1, s.client.ContainersCallCount())
+	s.Len(containers, 2)
 }
 
 func (s *BackendSuite) TestStart() {
