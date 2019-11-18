@@ -10,35 +10,22 @@ import (
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
-// defaultGardenOciSpec repreeseents a default set of properties necessary in
-// order to satisfy the garden interface.
-//
-// ps.: this spec is NOT complet - it must be merged with more properties to
-// form a properly working container.
-//
-func defaultGardenOciSpec(privileged bool) *specs.Spec {
-	var (
-		namespaces   = OciNamespaces(privileged)
-		capabilities = OciCapabilities(privileged)
-	)
-
-	return &specs.Spec{
-		Process: &specs.Process{
-			Args:         []string{"/tmp/gdn-init"},
-			Capabilities: &capabilities,
-			Cwd:          "/",
-		},
-		Linux: &specs.Linux{
-			Namespaces: namespaces,
-			Resources: &specs.LinuxResources{
-				Devices: AnyContainerDevices,
-			},
-		},
-		Mounts: AnyContainerMounts,
-	}
-}
-
 // OciSpec converts a given `garden` container specification to an OCI spec.
+//
+// TODO
+// - limits
+// - masked paths
+// - rootfs propagation
+// - seccomp
+// - user namespaces: uid/gid mappings
+// x capabilities
+// x devices
+// x env
+// x hostname
+// x mounts
+// x namespaces
+// x rootfs
+//
 //
 func OciSpec(gdn garden.ContainerSpec) (oci *specs.Spec, err error) {
 	var (
@@ -75,41 +62,11 @@ func OciSpec(gdn garden.ContainerSpec) (oci *specs.Spec, err error) {
 		Mounts:      mounts,
 		Annotations: map[string]string(gdn.Properties),
 		// Linux: &specs.Linux{
-		// Resources: &specs.LinuxResources{
-		// Memory:  nil,
-		// Cpu:     nil,
-		// },
+		// 	Resources: &specs.LinuxResources{Memory: nil, Cpu: nil},
 		// },
 	})
 
-	// deals with
-	// - limits
-	// - masked paths
-	// - rootfs propagation
-	// - seccomp
-	// - user namespaces: uid/gid mappings
-	// x capabilities
-	// x devices
-	// x env
-	// x hostname
-	// x mounts
-	// x namespaces
-	// x rootfs
-
 	return
-}
-
-// merge merges an OCI spec `a` into `b`.
-//
-// ps.: in case of property collision, `a` wins over `b`.
-//
-func merge(dst, src *specs.Spec) *specs.Spec {
-	err := mergo.Merge(dst, src, mergo.WithAppendSlice)
-	if err != nil {
-		panic(fmt.Errorf("failed merging specs - programming mistake? %w", err))
-	}
-
-	return dst
 }
 
 // OciSpecBindMounts converts garden bindmounts to oci spec mounts.
@@ -150,6 +107,48 @@ func OciSpecBindMounts(bindMounts []garden.BindMount) (mounts []specs.Mount, err
 	}
 
 	return
+}
+
+// defaultGardenOciSpec repreeseents a default set of properties necessary in
+// order to satisfy the garden interface.
+//
+// ps.: this spec is NOT complet - it must be merged with more properties to
+// form a properly working container.
+//
+func defaultGardenOciSpec(privileged bool) *specs.Spec {
+	var (
+		namespaces   = OciNamespaces(privileged)
+		capabilities = OciCapabilities(privileged)
+	)
+
+	return &specs.Spec{
+		Process: &specs.Process{
+			Args:         []string{"/tmp/gdn-init"},
+			Capabilities: &capabilities,
+			Cwd:          "/",
+		},
+		Linux: &specs.Linux{
+			Namespaces: namespaces,
+			Resources: &specs.LinuxResources{
+				Devices: AnyContainerDevices,
+			},
+		},
+		Mounts: AnyContainerMounts,
+	}
+}
+
+// merge merges an OCI spec `dst` into `src`.
+//
+func merge(dst, src *specs.Spec) *specs.Spec {
+	err := mergo.Merge(dst, src, mergo.WithAppendSlice)
+	if err != nil {
+		panic(fmt.Errorf(
+			"failed to merge specs %v %v - programming mistake? %w",
+			dst, src, err,
+		))
+	}
+
+	return dst
 }
 
 // rootfsDir takes a raw rootfs uri and extracts the directory that it points to,

@@ -125,7 +125,34 @@ func (s *BackendSuite) TestContainersSetsNamespace() {
 	s.Equal(testNamespace, namespace)
 }
 
-func (s *BackendSuite) TestContainersWithProperties() {
+func (s *BackendSuite) TestContainersWithInvalidPropertyFilters() {
+	for _, tc := range []struct {
+		desc   string
+		filter map[string]string
+	}{
+		{
+			desc: "empty key",
+			filter: map[string]string{
+				"": "bar",
+			},
+		},
+		{
+			desc: "empty value",
+			filter: map[string]string{
+				"foo": "",
+			},
+		},
+	} {
+		s.T().Run(tc.desc, func(t *testing.T) {
+			_, err := s.backend.Containers(tc.filter)
+
+			s.Error(err)
+			s.Equal(0, s.client.ContainersCallCount())
+		})
+	}
+}
+
+func (s *BackendSuite) TestContainersWithProperProperties() {
 	_, _ = s.backend.Containers(map[string]string{"foo": "bar", "caz": "zaz"})
 	s.Equal(1, s.client.ContainersCallCount())
 

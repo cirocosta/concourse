@@ -27,7 +27,7 @@ func New(client libcontainerd.Client, namespace string) Backend {
 	}
 }
 
-// Start sets up the connectivity to `containerd`.
+// Start initializes the client.
 //
 func (b *Backend) Start() (err error) {
 	err = b.client.Init()
@@ -39,7 +39,8 @@ func (b *Backend) Start() (err error) {
 	return
 }
 
-// Stop closes the client connection with `containerd`
+// Stop closes the client's underlying connections and frees any resources
+// associated with it.
 //
 func (b *Backend) Stop() {
 	_ = b.client.Stop()
@@ -112,15 +113,11 @@ func (b *Backend) Destroy(handle string) (err error) { return }
 // Errors:
 // * None.
 func (b *Backend) Containers(properties garden.Properties) (containers []garden.Container, err error) {
-	var (
-		ctx     = namespaces.WithNamespace(context.Background(), b.namespace)
-		filters = make([]string, len(properties))
-		idx     = 0
-	)
+	var ctx = namespaces.WithNamespace(context.Background(), b.namespace)
 
-	for k, v := range properties {
-		filters[idx] = k + "=" + v
-		idx++
+	filters, err := propertiesToFilterList(properties)
+	if err != nil {
+		return
 	}
 
 	res, err := b.client.Containers(ctx, filters...)
@@ -152,3 +149,23 @@ func (b *Backend) BulkMetrics(handles []string) (metrics map[string]garden.Conta
 // Errors:
 // * Container not found.
 func (b *Backend) Lookup(handle string) (container garden.Container, err error) { return }
+
+// propertiesToFilterList converts a set of garden properties to a list of
+// filters as expected by containerd.
+//
+func propertiesToFilterList(properties garden.Properties) (filters []string, err error) {
+	filters = make([]string, len(properties))
+
+	idx := 0
+	for k, v := range properties {
+		if k == "" || v == "" {
+			err = fmt.Errorf("key or value must not be empty")
+			return
+		}
+
+		filters[idx] = k + "=" + v
+		idx++
+	}
+
+	return
+}

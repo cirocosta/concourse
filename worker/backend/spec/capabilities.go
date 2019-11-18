@@ -2,6 +2,14 @@ package spec
 
 import "github.com/opencontainers/runtime-spec/specs-go"
 
+func OciCapabilities(privileged bool) specs.LinuxCapabilities {
+	if !privileged {
+		return UnprivilegedContainerCapabilities
+	}
+
+	return PrivilegedContainerCapabilities
+}
+
 var (
 	PrivilegedContainerCapabilities = specs.LinuxCapabilities{
 		Effective:   privilegedCaps,
@@ -18,20 +26,20 @@ var (
 	}
 
 	unprivilegedCaps = []string{
+		"CAP_AUDIT_WRITE",
 		"CAP_CHOWN",
 		"CAP_DAC_OVERRIDE",
-		"CAP_FSETID",
 		"CAP_FOWNER",
-		"CAP_MKNOD",
-		"CAP_NET_RAW",
-		"CAP_SETGID",
-		"CAP_SETUID",
-		"CAP_SETFCAP",
-		"CAP_SETPCAP",
-		"CAP_NET_BIND_SERVICE",
-		"CAP_SYS_CHROOT",
+		"CAP_FSETID",
 		"CAP_KILL",
-		"CAP_AUDIT_WRITE",
+		"CAP_MKNOD",
+		"CAP_NET_BIND_SERVICE",
+		"CAP_NET_RAW",
+		"CAP_SETFCAP",
+		"CAP_SETGID",
+		"CAP_SETPCAP",
+		"CAP_SETUID",
+		"CAP_SYS_CHROOT",
 	}
 
 	privilegedCaps = []string{
@@ -56,10 +64,11 @@ var (
 		"CAP_NET_BIND_SERVICE",
 		"CAP_NET_BROADCAST",
 		"CAP_NET_RAW",
-		"CAP_SETGID",
 		"CAP_SETFCAP",
+		"CAP_SETGID",
 		"CAP_SETPCAP",
 		"CAP_SETUID",
+		"CAP_SYSLOG",
 		"CAP_SYS_ADMIN",
 		"CAP_SYS_BOOT",
 		"CAP_SYS_CHROOT",
@@ -71,15 +80,6 @@ var (
 		"CAP_SYS_RESOURCE",
 		"CAP_SYS_TIME",
 		"CAP_SYS_TTY_CONFIG",
-		"CAP_SYSLOG",
 		"CAP_WAKE_ALARM",
 	}
 )
-
-func OciCapabilities(privileged bool) specs.LinuxCapabilities {
-	if !privileged {
-		return UnprivilegedContainerCapabilities
-	}
-
-	return PrivilegedContainerCapabilities
-}
