@@ -8,6 +8,7 @@ import (
 	"github.com/concourse/concourse/worker/backend"
 	"github.com/concourse/concourse/worker/backend/libcontainerd/libcontainerdfakes"
 	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/namespaces"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -81,6 +82,19 @@ func (s *BackendSuite) TestCreateWithNewContainerFailure() {
 	s.Equal(1, s.client.NewContainerCallCount())
 }
 
+func (s *BackendSuite) TestCreateSetsNamespace() {
+	fakeContainer := new(libcontainerdfakes.FakeContainer)
+	s.client.NewContainerReturns(fakeContainer, nil)
+
+	_, _ = s.backend.Create(minimumValidGdnSpec)
+	s.Equal(1, s.client.NewContainerCallCount())
+
+	ctx, _, _, _ := s.client.NewContainerArgsForCall(0)
+	namespace, ok := namespaces.Namespace(ctx)
+	s.True(ok)
+	s.Equal(testNamespace, namespace)
+}
+
 func (s *BackendSuite) TestCreateContainerNewTaskFailure() {
 	fakeContainer := new(libcontainerdfakes.FakeContainer)
 	fakeContainer.NewTaskReturns(nil, errors.New("err"))
@@ -99,6 +113,16 @@ func (s *BackendSuite) TestContainersWithContainerdFailure() {
 	_, err := s.backend.Containers(nil)
 	s.Error(err)
 	s.Equal(1, s.client.ContainersCallCount())
+}
+
+func (s *BackendSuite) TestContainersSetsNamespace() {
+	_, _ = s.backend.Containers(nil)
+	s.Equal(1, s.client.ContainersCallCount())
+
+	ctx, _ := s.client.ContainersArgsForCall(0)
+	namespace, ok := namespaces.Namespace(ctx)
+	s.True(ok)
+	s.Equal(testNamespace, namespace)
 }
 
 func (s *BackendSuite) TestContainersWithProperties() {
